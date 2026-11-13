@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ordered Median Tie-Break Engine | Interactive Sandbox</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- TOP HEADER -->
+    <header class="navbar">
+      <div class="brand">
+        <span class="logo-icon">📍</span>
+        <div>
+          <h1>Ordered Median Tie-Break Engine</h1>
+          <p class="subtitle">Multi-Criteria Optimization Sandbox for Group Hangouts</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <label for="preset-select" class="preset-label">Scenario Preset:</label>
+        <select id="preset-select" class="preset-dropdown">
+          <option value="hcmc_5_friends">TP. Hồ Chí Minh (5 Bạn, Q1 - Q7)</option>
+          <option value="hanoi_outlier">Hà Nội (Outlier Long Biên)</option>
+        </select>
+        <button id="run-btn" class="btn-primary">
+          <span class="btn-icon">⚡</span> Run Optimization
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <div class="main-layout">
+      <!-- LEFT CONTROLS SIDEBAR -->
+      <aside class="sidebar">
+        <!-- MATHEMATICAL PARAMETER TUNING -->
+        <section class="card parameter-tuning">
+          <div class="card-header">
+            <h3>⚙️ Parameter Tuning</h3>
+            <span class="badge" id="mode-badge">Tier 1 & Tier 2</span>
+          </div>
+
+          <!-- Slider 1: Exponent k -->
+          <div class="control-group">
+            <div class="slider-header">
+              <label for="exponent-slider">
+                <strong>Penalty Exponent $(k)$</strong>: <span id="exponent-val" class="highlight-val">1.0</span>
+              </label>
+              <span id="exponent-desc" class="mini-tag">Standard Linear</span>
+            </div>
+            <input type="range" id="exponent-slider" min="1.0" max="3.0" step="0.1" value="1.0" class="slider">
+            <p class="control-hint">Individual cost: $c_i = d_i^k$. Higher $k$ progressively punishes long commutes.</p>
+          </div>
+
+          <!-- Slider 2: Fairness Factor lambda -->
+          <div class="control-group">
+            <div class="slider-header">
+              <label for="fairness-slider">
+                <strong>Fairness Factor $(\lambda)$</strong>: <span id="fairness-val" class="highlight-val">0.5</span>
+              </label>
+              <span id="fairness-desc" class="mini-tag">Compromise OMP</span>
+            </div>
+            <input type="range" id="fairness-slider" min="0.0" max="2.0" step="0.1" value="0.5" class="slider">
+            <p class="control-hint">$\lambda = 0.0$: MinSum (group total). $\lambda \ge 1.0$: MinMax (outlier protection).</p>
+          </div>
+
+          <!-- Toggle: OSRM vs Resilient Fallback -->
+          <div class="control-group checkbox-group">
+            <label class="toggle-switch">
+              <input type="checkbox" id="osrm-toggle" checked>
+              <span class="toggle-slider"></span>
+            </label>
+            <div>
+              <span class="toggle-title">Query Live OSRM Network</span>
+              <p class="control-hint">Uncheck to test deterministic Haversine (1.35x detour) fallback.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- PARTICIPANTS LIST -->
+        <section class="card">
+          <div class="card-header">
+            <h3>👥 Participants (<span id="participant-count">0</span>)</h3>
+            <span class="sub-badge">Home Coordinates</span>
+          </div>
+          <div id="participants-list" class="items-list">
+            <!-- Dynamic items rendered via app.js -->
+          </div>
+        </section>
+
+        <!-- TIED ITINERARY SLOTS & CANDIDATES -->
+        <section class="card">
+          <div class="card-header">
+            <h3>🗓️ Tied Itinerary Slots (<span id="slot-count">0</span>)</h3>
+            <span class="sub-badge">Candidates</span>
+          </div>
+          <div id="slots-list" class="items-list">
+            <!-- Dynamic items rendered via app.js -->
+          </div>
+        </section>
+      </aside>
+
+      <!-- CENTER & RIGHT: MAP & RESULTS -->
+      <main class="content-area">
+        <!-- MAP CONTAINER -->
+        <div class="map-wrapper">
+          <div id="map"></div>
+          <div class="map-legend">
+            <div class="legend-item"><span class="dot dot-participant"></span> Participant Homes</div>
+            <div class="legend-item"><span class="dot dot-candidate"></span> Tied Candidates</div>
+            <div class="legend-item"><span class="dot dot-winner"></span> Winning Selection</div>
+          </div>
+        </div>
+
+        <!-- RESULTS DRAWER -->
+        <section class="results-container">
+          <div class="results-header">
+            <div>
+              <h2>🏆 Optimization Breakdown</h2>
+              <p class="sub-text">Calculated via Ordered Median Problem & Two-Tier Non-Linear Cost Matrix</p>
+            </div>
+            <div class="telemetry-tags">
+              <span id="telemetry-time" class="tag">0.0 ms</span>
+              <span id="telemetry-routing" class="tag tag-success">OSRM Active</span>
+            </div>
+          </div>
+
+          <!-- WINNING SUMMARY CARDS -->
+          <div class="metric-cards-grid">
+            <div class="metric-card gold-border">
+              <span class="metric-label">Selected Winning Itinerary</span>
+              <div id="winning-itinerary-names" class="metric-value highlight">Loading...</div>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Total Objective Score ($\Psi$)</span>
+              <div id="metric-psi" class="metric-value">--</div>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Avg Distance / Person</span>
+              <div id="metric-avg-dist" class="metric-value">--</div>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Max Commute (Outlier)</span>
+              <div id="metric-max-dist" class="metric-value">--</div>
+            </div>
+          </div>
+
+          <!-- STEP-BY-STEP MATH EXPLANATION -->
+          <div class="math-card">
+            <h4>📐 Mathematical Step-by-Step Breakdown</h4>
+            <div id="math-explanation-content" class="code-font">
+              Select parameters and click "Run Optimization" to view cost aggregation steps.
+            </div>
+          </div>
+
+          <!-- PER-PARTICIPANT BREAKDOWN TABLE -->
+          <div class="table-card">
+            <h4>Individual Participant Breakdown (Ascending Cost Rank)</h4>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Participant</th>
+                    <th>Distance ($d_i$)</th>
+                    <th>Penalized Cost ($c_i = d_i^k$)</th>
+                    <th>Rank Weight ($w_i$)</th>
+                    <th>Weighted Score ($w_i \cdot c_i$)</th>
+                  </tr>
+                </thead>
+                <tbody id="participant-table-body">
+                  <tr><td colspan="6" class="text-center">No data computed yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- COMBINATION COMPARISONS TABLE -->
+          <div class="table-card">
+            <h4>All Evaluated Combinations (Ranked by Penalty Score $\Psi$)</h4>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Candidate Combo</th>
+                    <th>Objective Score ($\Psi$)</th>
+                    <th>Avg Distance</th>
+                    <th>Max Outlier Distance</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="combinations-table-body">
+                  <tr><td colspan="6" class="text-center">No data computed yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Application JS -->
+  <script src="/static/app.js"></script>
+</body>
+</html>
