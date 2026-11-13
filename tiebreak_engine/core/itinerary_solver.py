@@ -1,12 +1,12 @@
 """
 =============================================================================
 MODULE: itinerary_solver.py
-PURPOSE: Combinatorial Path Evaluator & Optimal Candidate Selection.
+MỤC ĐÍCH: Đánh Giá Lộ Trình Tổ Hợp & Tìm Quán Chiến Thắng Tối Ưu Nhất.
 =============================================================================
-Evaluates all candidate combinations across fixed chronological itinerary slots:
-  Route for participant i: Home_i -> S_1 -> S_2 -> ... -> S_K -> Home_i
-Computes individual distances, penalized costs, applies the Ordered Median
-aggregator, and identifies the optimal tie-break winner.
+Đánh giá tất cả các tổ hợp ứng viên cho chuỗi chặng đi chơi có thứ tự cố định:
+  Lộ trình của bạn i: Nhà_i -> Chặng 1 -> Chặng 2 -> ... -> Chặng Cuối -> Nhà_i
+Tính khoảng cách di chuyển thực tế, chi phí phạt cá nhân, tổng hợp qua
+Ordered Median và xác định tổ hợp chiến thắng tối ưu nhất.
 """
 
 import itertools
@@ -14,7 +14,7 @@ import time
 from typing import List, Dict, Any, Tuple, Optional
 from dataclasses import dataclass, field
 
-from tiebreak_engine.core.router import RouterClient, Coordinate
+from tiebreak_engine.core.router import RouterClient, Coordinate, RouteSegment
 from tiebreak_engine.core.scoring_formula import (
     compute_individual_penalty,
     generate_ordered_median_weights,
@@ -55,6 +55,8 @@ class ParticipantEvaluation:
     sorted_rank: int
     rank_weight: float
     weighted_contribution: float
+    outbound_geometry: List[List[float]] = field(default_factory=list)
+    inbound_geometry: List[List[float]] = field(default_factory=list)
 
 
 @dataclass
@@ -65,6 +67,7 @@ class CombinationEvaluation:
     average_distance_km: float
     max_distance_km: float
     min_distance_km: float
+    shared_itinerary_geometry: List[List[float]] = field(default_factory=list)
 
 
 @dataclass
@@ -79,7 +82,7 @@ class SolverSolution:
 
 class ItinerarySolver:
     """
-    Solves the multi-criteria tie-break problem over fixed chronological slots.
+    Giải bài toán phân giải hòa vote đa tiêu chí trên chuỗi chặng thời gian cố định.
     """
 
     def __init__(self, router: Optional[RouterClient] = None):
@@ -93,80 +96,80 @@ class ItinerarySolver:
         fairness_factor: float = 0.5,
     ) -> SolverSolution:
         """
-        Evaluates candidate combinations and selects the one with minimum OMP penalty.
-
-        Args:
-            participants: List of participants with home coordinates.
-            slots: Ordered list of slots, each containing 1 or more tied candidates.
-            penalty_exponent (k): Tier 1 exponent for individual distance.
-            fairness_factor (lambda): Tier 2 Ordered Median fairness tuning.
-
-        Returns:
-            SolverSolution: Best combination, full breakdowns, and comparison alternatives.
+        Đánh giá các tổ hợp ứng viên và chọn ra tổ hợp có tổng điểm phạt OMP nhỏ nhất.
         """
         start_time = time.perf_counter()
         num_participants = len(participants)
 
         if num_participants == 0:
-            raise ValueError("At least one participant is required.")
+            raise ValueError("Yêu cầu tối thiểu phải có một thành viên tham gia.")
         if len(slots) == 0:
-            raise ValueError("At least one itinerary slot is required.")
+            raise ValueError("Yêu cầu tối thiểu phải có một chặng thời gian.")
 
-        # Validate that each slot has at least one candidate
         for slot in slots:
             if not slot.candidates:
-                raise ValueError(f"Slot '{slot.name}' (ID: {slot.id}) has no candidate places.")
+                raise ValueError(f"Chặng '{slot.name}' (ID: {slot.id}) không có quán ứng viên nào.")
 
-        # 1. Generate rank weight vector W
+        # 1. Sinh vector trọng số thứ tự W = (w_1, ..., w_n)
         weights = generate_ordered_median_weights(num_participants, fairness_factor)
 
-        # 2. Extract candidate lists for Cartesian product
+        # 2. Tạo tích Đề-các (Cartesian Product) cho tất cả các tổ hợp quán qua từng chặng
         slot_candidate_lists = [slot.candidates for slot in slots]
         all_combinations = list(itertools.product(*slot_candidate_lists))
 
         evaluated_combinations: List[CombinationEvaluation] = []
         any_fallback_triggered = False
 
-        # 3. Evaluate each combination
+        # 3. Đánh giá từng tổ hợp lộ trình
         for combo in all_combinations:
             combo_candidates: List[PlaceCandidate] = list(combo)
 
-            # Precompute intra-itinerary distance: S_1 -> S_2 -> ... -> S_K
+            # Tính quãng đường và gom hình học chung giữa các quán: Quán 1 -> Quán 2 -> ... -> Quán K
             shared_middle_distance = 0.0
+            shared_geometry: List[List[float]] = []
+
             for idx in range(len(combo_candidates) - 1):
                 from_c = combo_candidates[idx].coord
                 to_c = combo_candidates[idx + 1].coord
-                seg_dist, is_fallback = await self.router.get_distance_km(from_c, to_c)
-                if is_fallback:
+                route_seg = await self.router.get_route(from_c, to_c)
+                if route_seg.is_fallback:
                     any_fallback_triggered = True
-                shared_middle_distance += seg_dist
+                shared_middle_distance += route_seg.distance_km
+                if route_seg.geometry:
+                    # Nối tiếp tọa độ đường đi mà không bị lặp điểm giao
+                    if shared_geometry and route_seg.geometry:
+                        shared_geometry.extend(route_seg.geometry[1:])
+                    else:
+                        shared_geometry.extend(route_seg.geometry)
 
             first_spot_coord = combo_candidates[0].coord
             last_spot_coord = combo_candidates[-1].coord
 
-            # Compute round-trip distance for each participant
+            # Tính quãng đường khứ hồi và lưu tọa độ lộ trình cho từng thành viên
             individual_distances: List[float] = []
             individual_costs: List[float] = []
+            participant_routes: List[Tuple[RouteSegment, RouteSegment]] = []
 
             for p in participants:
-                # Leg 1: Home -> First Spot
-                leg1_dist, f1 = await self.router.get_distance_km(p.coord, first_spot_coord)
-                # Leg 3: Last Spot -> Home
-                leg3_dist, f3 = await self.router.get_distance_km(last_spot_coord, p.coord)
-                if f1 or f3:
+                # Chặng đi: Nhà -> Quán đầu tiên
+                leg1_route = await self.router.get_route(p.coord, first_spot_coord)
+                # Chặng về: Quán cuối cùng -> Nhà
+                leg3_route = await self.router.get_route(last_spot_coord, p.coord)
+
+                if leg1_route.is_fallback or leg3_route.is_fallback:
                     any_fallback_triggered = True
 
-                # Total round trip: Home -> S_1 -> ... -> S_K -> Home
-                total_dist = round(leg1_dist + shared_middle_distance + leg3_dist, 3)
+                total_dist = round(leg1_route.distance_km + shared_middle_distance + leg3_route.distance_km, 3)
                 cost = compute_individual_penalty(total_dist, penalty_exponent)
 
                 individual_distances.append(total_dist)
                 individual_costs.append(cost)
+                participant_routes.append((leg1_route, leg3_route))
 
-            # 4. Apply Ordered Median Problem aggregation
+            # 4. Áp dụng bộ tổng hợp Ordered Median Problem (OMP)
             omp_result: OrderedMedianResult = compute_ordered_median(individual_costs, weights)
 
-            # Build detailed participant evaluations
+            # Đóng gói chi tiết đánh giá cho từng thành viên
             participant_evals: List[ParticipantEvaluation] = []
             for rank, orig_idx in enumerate(omp_result.rank_to_original_index):
                 p = participants[orig_idx]
@@ -174,6 +177,7 @@ class ItinerarySolver:
                 cost = individual_costs[orig_idx]
                 weight = weights[rank]
                 weighted_val = round(cost * weight, 4)
+                leg1_r, leg3_r = participant_routes[orig_idx]
 
                 participant_evals.append(
                     ParticipantEvaluation(
@@ -181,13 +185,15 @@ class ItinerarySolver:
                         participant_name=p.name,
                         total_distance_km=dist,
                         penalized_cost=round(cost, 4),
-                        sorted_rank=rank + 1,  # 1-indexed for human readability
+                        sorted_rank=rank + 1,
                         rank_weight=weight,
                         weighted_contribution=weighted_val,
+                        outbound_geometry=leg1_r.geometry,
+                        inbound_geometry=leg3_r.geometry,
                     )
                 )
 
-            # Sort participant evaluations by participant ID or original order for stable display
+            # Sắp xếp hiển thị theo ID thành viên ban đầu
             participant_evals.sort(key=lambda item: item.participant_id)
 
             avg_dist = round(sum(individual_distances) / num_participants, 3)
@@ -201,10 +207,11 @@ class ItinerarySolver:
                 average_distance_km=avg_dist,
                 max_distance_km=max_dist,
                 min_distance_km=min_dist,
+                shared_itinerary_geometry=shared_geometry,
             )
             evaluated_combinations.append(evaluation)
 
-        # 5. Select the combination with minimum total penalty score
+        # 5. Chọn tổ hợp có tổng điểm phạt mục tiêu nhỏ nhất
         evaluated_combinations.sort(key=lambda eval_item: eval_item.total_penalty_score)
         best_combo = evaluated_combinations[0]
 

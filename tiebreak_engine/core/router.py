@@ -1,28 +1,30 @@
 """
 =============================================================================
 MODULE: router.py
-PURPOSE: Resilient Routing Client (OSRM Table/Route API + Cache + Haversine Fallback).
+MỤC ĐÍCH: Client Định Tuyến Linh Hoạt (OSRM Route API + Cache RAM + Fallback Haversine).
 =============================================================================
-Features:
-  1. Primary Provider: Public OpenStreetMap Routing Machine (OSRM) driving API.
-  2. Memory Cache: In-memory coordinate pair cache to avoid redundant API hits.
-  3. Resilience Fallback: Automatic fallback to great-circle Haversine formula
-     multiplied by an urban detour factor (1.35x) on network error/timeout/HTTP 429.
+Tính năng:
+  1. Nhà cung cấp chính: OpenStreetMap Routing Machine (OSRM) driving API.
+     Lấy khoảng cách thực tế trên mạng lưới đường phố VÀ hình học đường đi GeoJSON
+     (các khúc cua, ngã tư, cây cầu thực tế) thay vì đường thẳng.
+  2. Bộ đệm bộ nhớ (RAM Cache): Lưu các cặp tọa độ đã tính để tránh gọi API trùng lặp.
+  3. Phòng thủ mạng (Fallback): Tự động chuyển sang công thức chim bay Haversine nhân
+     hệ số ngoằn ngoèo đô thị (1.35x) khi mất mạng, quá thời gian (timeout) hoặc bị hạn chế lượt gọi.
 """
 
 import math
 import logging
-from typing import Dict, Tuple, List, Optional
-from dataclasses import dataclass
+from typing import Dict, Tuple, List, Optional, Any
+from dataclasses import dataclass, field
 
 try:
     import httpx
 except ImportError:
-    httpx = None  # Fallback gracefully if httpx is unavailable
+    httpx = None
 
 logger = logging.getLogger("tiebreak_engine.router")
 
-# Standard urban tortuosity / detour factor for road networks
+# Hệ số ngoằn ngoèo đường phố thực tế so với đường chim bay (Urban Detour Factor)
 URBAN_DETOUR_FACTOR = 1.35
 EARTH_RADIUS_KM = 6371.0
 
@@ -33,12 +35,20 @@ class Coordinate:
     lng: float
 
     def cache_key(self) -> Tuple[float, float]:
-        """Rounds coordinates to ~1.1m precision for robust cache hit rate."""
+        """Làm tròn tọa độ đến 5 chữ số thập phân (~1.1m) để tăng tỷ lệ trúng cache."""
         return (round(self.lat, 5), round(self.lng, 5))
 
 
+@dataclass
+class RouteSegment:
+    distance_km: float
+    # Danh sách tọa độ GeoJSON: [[lng, lat], [lng, lat], ...]
+    geometry: List[List[float]]
+    is_fallback: bool
+
+
 def haversine_distance_km(coord1: Coordinate, coord2: Coordinate) -> float:
-    """Computes great-circle distance between two points on Earth in kilometers."""
+    """Tính khoảng cách cung tròn lớn (đường chim bay) giữa 2 tọa độ theo km."""
     if coord1 == coord2:
         return 0.0
 
@@ -57,67 +67,80 @@ def haversine_distance_km(coord1: Coordinate, coord2: Coordinate) -> float:
 
 class RouterClient:
     """
-    Manages pairwise routing and distance matrix computation.
-    Thread-safe in-memory cache and automatic fallback mechanism.
+    Quản lý việc tính khoảng cách định tuyến và lấy hình học đường đi thực tế.
     """
 
     def __init__(
         self,
         osrm_base_url: str = "https://router.project-osrm.org",
-        timeout_seconds: float = 3.0,
+        timeout_seconds: float = 4.0,
         enable_osrm: bool = True,
     ):
         self.osrm_base_url = osrm_base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
         self.enable_osrm = enable_osrm
-        self._distance_cache: Dict[Tuple[Tuple[float, float], Tuple[float, float]], float] = {}
+        # Bộ đệm lưu: (c1_key, c2_key) -> RouteSegment
+        self._route_cache: Dict[Tuple[Tuple[float, float], Tuple[float, float]], RouteSegment] = {}
         self.fallback_triggered_count: int = 0
 
+    @property
+    def _distance_cache(self) -> Dict[Tuple[Tuple[float, float], Tuple[float, float]], float]:
+        """Thuộc tính tương thích ngược cho việc tra cứu khoảng cách km."""
+        return {k: v.distance_km for k, v in self._route_cache.items()}
+
     def get_cached_distance(self, c1: Coordinate, c2: Coordinate) -> Optional[float]:
-        key = (c1.cache_key(), c2.cache_key())
-        return self._distance_cache.get(key)
+        route = self.get_cached_route(c1, c2)
+        return route.distance_km if route else None
 
-    def set_cached_distance(self, c1: Coordinate, c2: Coordinate, dist_km: float) -> None:
+    def get_cached_route(self, c1: Coordinate, c2: Coordinate) -> Optional[RouteSegment]:
         key = (c1.cache_key(), c2.cache_key())
-        self._distance_cache[key] = dist_km
-        # Symmetric road network approximation for cache efficiency
+        return self._route_cache.get(key)
+
+    def set_cached_route(self, c1: Coordinate, c2: Coordinate, segment: RouteSegment) -> None:
+        key = (c1.cache_key(), c2.cache_key())
+        self._route_cache[key] = segment
+
+        # Với chiều ngược lại: đảo chiều mảng tọa độ đường đi để tối ưu cache
         rev_key = (c2.cache_key(), c1.cache_key())
-        if rev_key not in self._distance_cache:
-            self._distance_cache[rev_key] = dist_km
+        if rev_key not in self._route_cache:
+            reversed_geometry = list(reversed(segment.geometry)) if segment.geometry else []
+            self._route_cache[rev_key] = RouteSegment(
+                distance_km=segment.distance_km,
+                geometry=reversed_geometry,
+                is_fallback=segment.is_fallback,
+            )
 
-    def compute_fallback_distance(self, c1: Coordinate, c2: Coordinate) -> float:
-        """Calculates approximate driving distance via Haversine * Detour Factor."""
+    def compute_fallback_segment(self, c1: Coordinate, c2: Coordinate) -> RouteSegment:
+        """Tính khoảng cách xấp xỉ qua Haversine * Hệ số đường phố 1.35x."""
         direct_km = haversine_distance_km(c1, c2)
-        return round(direct_km * URBAN_DETOUR_FACTOR, 3)
+        dist_km = round(direct_km * URBAN_DETOUR_FACTOR, 3)
+        geometry = [[c1.lng, c1.lat], [c2.lng, c2.lat]]
+        return RouteSegment(distance_km=dist_km, geometry=geometry, is_fallback=True)
 
-    async def get_distance_km(self, c1: Coordinate, c2: Coordinate) -> Tuple[float, bool]:
+    async def get_route(self, c1: Coordinate, c2: Coordinate) -> RouteSegment:
         """
-        Gets the driving distance between two coordinates in kilometers.
-
-        Returns:
-            Tuple[float, bool]: (distance_in_km, is_fallback_used)
+        Lấy lộ trình đường đi thực tế, khoảng cách (km) và mảng tọa độ GeoJSON.
         """
         if c1.cache_key() == c2.cache_key():
-            return 0.0, False
+            return RouteSegment(distance_km=0.0, geometry=[[c1.lng, c1.lat]], is_fallback=False)
 
-        # 1. Check in-memory cache
-        cached = self.get_cached_distance(c1, c2)
+        # 1. Kiểm tra trong bộ nhớ cache
+        cached = self.get_cached_route(c1, c2)
         if cached is not None:
-            return cached, False
+            return cached
 
-        # 2. If OSRM is disabled, use fallback immediately
+        # 2. Nếu tắt OSRM hoặc thiếu thư viện httpx, dùng ngay fallback
         if not self.enable_osrm or httpx is None:
-            fallback_dist = self.compute_fallback_distance(c1, c2)
-            self.set_cached_distance(c1, c2, fallback_dist)
+            fallback_seg = self.compute_fallback_segment(c1, c2)
+            self.set_cached_route(c1, c2, fallback_seg)
             self.fallback_triggered_count += 1
-            return fallback_dist, True
+            return fallback_seg
 
-        # 3. Query OSRM Table or Route API
-        # OSRM coordinate order: {lng},{lat};{lng},{lat}
+        # 3. Gọi API OSRM Route kèm hình học đường đi GeoJSON chi tiết
         url = (
             f"{self.osrm_base_url}/route/v1/driving/"
             f"{c1.lng},{c1.lat};{c2.lng},{c2.lat}"
-            f"?overview=false&alternatives=false&steps=false"
+            f"?overview=full&geometries=geojson&alternatives=false&steps=false"
         )
 
         try:
@@ -129,42 +152,30 @@ class RouterClient:
                     if routes:
                         distance_meters = float(routes[0].get("distance", 0.0))
                         distance_km = round(distance_meters / 1000.0, 3)
-                        self.set_cached_distance(c1, c2, distance_km)
-                        return distance_km, False
+                        geometry = routes[0].get("geometry", {}).get("coordinates", [])
+                        segment = RouteSegment(
+                            distance_km=distance_km,
+                            geometry=geometry,
+                            is_fallback=False,
+                        )
+                        self.set_cached_route(c1, c2, segment)
+                        return segment
 
                 logger.warning(
-                    f"OSRM returned status {response.status_code}. Activating Haversine fallback."
+                    f"OSRM trả về mã lỗi {response.status_code}. Kích hoạt chế độ phòng thủ Haversine."
                 )
         except Exception as exc:
             logger.warning(
-                f"OSRM request failed ({type(exc).__name__}: {exc}). Activating Haversine fallback."
+                f"Gọi OSRM thất bại ({type(exc).__name__}: {exc}). Kích hoạt chế độ phòng thủ Haversine."
             )
 
-        # 4. Fallback execution
+        # 4. Kích hoạt dự phòng khẩn cấp
         self.fallback_triggered_count += 1
-        fallback_dist = self.compute_fallback_distance(c1, c2)
-        self.set_cached_distance(c1, c2, fallback_dist)
-        return fallback_dist, True
+        fallback_seg = self.compute_fallback_segment(c1, c2)
+        self.set_cached_route(c1, c2, fallback_seg)
+        return fallback_seg
 
-    async def compute_distance_matrix(
-        self, origins: List[Coordinate], destinations: List[Coordinate]
-    ) -> Tuple[List[List[float]], bool]:
-        """
-        Computes pairwise distance matrix between origins and destinations.
-
-        Returns:
-            Tuple[List[List[float]], bool]: (matrix[len(origins)][len(destinations)], any_fallback_used)
-        """
-        matrix: List[List[float]] = []
-        any_fallback = False
-
-        for orig in origins:
-            row: List[float] = []
-            for dest in destinations:
-                dist_km, is_fallback = await self.get_distance_km(orig, dest)
-                if is_fallback:
-                    any_fallback = True
-                row.append(dist_km)
-            matrix.append(row)
-
-        return matrix, any_fallback
+    async def get_distance_km(self, c1: Coordinate, c2: Coordinate) -> Tuple[float, bool]:
+        """Hàm tiện ích trả về cặp giá trị: (khoảng_cách_km, có_dùng_dự_phòng_không)."""
+        route = await self.get_route(c1, c2)
+        return route.distance_km, route.is_fallback

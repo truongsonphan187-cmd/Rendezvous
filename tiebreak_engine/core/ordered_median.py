@@ -1,19 +1,19 @@
 """
 =============================================================================
 MODULE: ordered_median.py
-PURPOSE: Implementation of the Ordered Median Problem (OMP) Aggregator.
+MỤC ĐÍCH: Hiện thực Bộ Tổng Hợp Ordered Median Problem (OMP).
 =============================================================================
-Given N individual costs and N rank weights, this module:
-  1. Identifies the sorted permutation of individual costs.
-  2. Computes the scalar dot product between sorted costs and weights.
-  3. Returns both the total penalty metric (Psi) and full rank association metadata.
+Nhận vào N chi phí cá nhân và N trọng số thứ tự:
+  1. Xác định hoán vị sắp xếp tăng dần của chi phí: c_(1) <= c_(2) <= ... <= c_(N).
+  2. Tính tích vô hướng (dot product) giữa chi phí đã sắp xếp và vector trọng số w.
+  3. Trả về tổng điểm phạt mục tiêu (Psi) kèm siêu dữ liệu xếp hạng chi tiết.
 """
 
 from typing import List, Dict, Any, Tuple
 
 
 class OrderedMedianResult:
-    """Encapsulates the output of the Ordered Median Aggregation."""
+    """Đóng gói kết quả tính toán của bộ lọc Ordered Median."""
     def __init__(
         self,
         total_penalty: float,
@@ -40,21 +40,21 @@ def compute_ordered_median(
     rank_weights: List[float],
 ) -> OrderedMedianResult:
     """
-    Executes the Ordered Median objective function.
+    Thực thi hàm mục tiêu Ordered Median.
 
-    Formula:
-        Psi = sum(w_j * c_(j) for j in 1..N)
-        where c_(1) <= c_(2) <= ... <= c_(N)
+    Công thức:
+        Psi = sum(w_j * c_(j) với j từ 1..N)
+        trong đó c_(1) <= c_(2) <= ... <= c_(N)
 
-    Parameters:
-        individual_costs (List[float]): Unordered list of individual penalized costs.
-        rank_weights (List[float]): Rank weights, typically non-decreasing.
+    Tham số:
+        individual_costs (List[float]): Danh sách chi phí phạt chưa sắp xếp của từng bạn.
+        rank_weights (List[float]): Vector trọng số thứ hạng (thường tăng dần theo rank).
 
-    Returns:
-        OrderedMedianResult: Object containing aggregate penalty and breakdown metadata.
+    Trả về:
+        OrderedMedianResult: Đối tượng chứa điểm tổng kết và chi tiết xếp hạng.
 
-    Raises:
-        ValueError: If lengths of costs and weights mismatch or list is empty.
+    Báo lỗi:
+        ValueError: Nếu độ dài danh sách chi phí và trọng số không khớp nhau hoặc rỗng.
     """
     n = len(individual_costs)
     if n == 0:
@@ -62,12 +62,12 @@ def compute_ordered_median(
 
     if len(rank_weights) != n:
         raise ValueError(
-            f"Dimension mismatch: Received {n} individual costs but {len(rank_weights)} rank weights."
+            f"Lỗi lệch kích thước: Nhận được {n} chi phí cá nhân nhưng có {len(rank_weights)} trọng số rank."
         )
 
-    # Pair each cost with its original index: (cost, original_idx)
+    # Ghép cặp chi phí với vị trí gốc ban đầu: (chi phí, chỉ số gốc)
     indexed_costs = list(enumerate(individual_costs))
-    # Sort ascending by cost: c_(1) <= c_(2) <= ... <= c_(N)
+    # Sắp xếp tăng dần theo chi phí: c_(1) <= c_(2) <= ... <= c_(N)
     indexed_costs.sort(key=lambda item: item[1])
 
     sorted_costs: List[float] = []

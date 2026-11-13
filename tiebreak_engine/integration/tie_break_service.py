@@ -1,10 +1,10 @@
 """
 =============================================================================
 MODULE: tie_break_service.py
-PURPOSE: Integration Facade Service for backend/app/domain/patterns/TieBreak.
+MỤC ĐÍCH: Service Giao Tiếp (Facade) Cho backend/app/domain/patterns/TieBreak.
 =============================================================================
-Provides a unified, async entry point that accepts Pydantic DTOs, executes
-the core Ordered Median algorithm, and returns structured API responses.
+Cung cấp cổng giao tiếp bất đồng bộ (async), nhận Pydantic DTOs, thực thi
+thuật toán Ordered Median cốt lõi và trả về phản hồi chuẩn hóa kèm hình học đường đi.
 """
 
 from typing import List, Optional
@@ -27,8 +27,8 @@ from tiebreak_engine.integration.schemas import (
 
 class TieBreakService:
     """
-    Facade service designed to be plugged directly into the FastAPI backend
-    at `backend/app/domain/patterns/TieBreak/` or called from application routers.
+    Service facade được thiết kế để cắm trực tiếp vào backend FastAPI của nhóm
+    tại `backend/app/domain/patterns/TieBreak/` hoặc gọi từ routers.
     """
 
     def __init__(self, router: Optional[RouterClient] = None):
@@ -37,19 +37,11 @@ class TieBreakService:
 
     async def resolve(self, request: TieBreakRequest) -> TieBreakResponse:
         """
-        Asynchronously resolves candidate place ties across an itinerary.
-
-        Args:
-            request (TieBreakRequest): Input data containing participant homes,
-                                       itinerary slots, and tuning parameters.
-
-        Returns:
-            TieBreakResponse: Selected optimal places and mathematical breakdown.
+        Bất đồng bộ xử lý phân giải hòa vote các quán ăn/địa điểm hẹn.
         """
-        # Configure routing mode (OSRM vs offline Haversine detour)
         self.router.enable_osrm = request.enable_osrm
 
-        # 1. Transform Pydantic Participants -> Core Domain Entities
+        # 1. Chuyển đổi DTO Thành viên -> Thực thể Domain cốt lõi
         domain_participants: List[Participant] = [
             Participant(
                 id=p.id,
@@ -59,7 +51,7 @@ class TieBreakService:
             for p in request.participants
         ]
 
-        # 2. Transform Pydantic Slots & Candidates -> Core Domain Entities
+        # 2. Chuyển đổi DTO Chặng & Quán ứng viên -> Thực thể Domain
         domain_slots: List[Slot] = []
         for slot_dto in request.slots:
             candidates: List[PlaceCandidate] = [
@@ -77,7 +69,7 @@ class TieBreakService:
                 Slot(id=slot_dto.slot_id, name=slot_dto.slot_name, candidates=candidates)
             )
 
-        # 3. Solve the optimization problem
+        # 3. Chạy thuật toán giải bài toán tối ưu
         solution: SolverSolution = await self.solver.solve(
             participants=domain_participants,
             slots=domain_slots,
@@ -85,7 +77,7 @@ class TieBreakService:
             fairness_factor=request.fairness_factor,
         )
 
-        # 4. Construct Response DTOs
+        # 4. Đóng gói DTOs phản hồi trả về
         selected_places: List[CandidatePlace] = [
             CandidatePlace(
                 id=c.id,
@@ -107,6 +99,8 @@ class TieBreakService:
                 rank=pe.sorted_rank,
                 rank_weight=pe.rank_weight,
                 weighted_score=pe.weighted_contribution,
+                outbound_geometry=pe.outbound_geometry,
+                inbound_geometry=pe.inbound_geometry,
             )
             for pe in solution.best_combination.participant_evaluations
         ]
@@ -138,6 +132,7 @@ class TieBreakService:
             total_penalty_score=solution.best_combination.total_penalty_score,
             participant_breakdowns=participant_breakdowns,
             evaluated_combinations=evaluated_summaries,
+            shared_itinerary_geometry=solution.best_combination.shared_itinerary_geometry,
             execution_time_ms=solution.execution_time_ms,
             fallback_used=solution.fallback_used,
             applied_parameters={
@@ -145,8 +140,8 @@ class TieBreakService:
                 "fairness_factor": solution.fairness_factor,
             },
             message=(
-                "Tie-break resolved successfully via OSRM network routing."
+                "Phân giải hòa vote thành công qua mạng lưới đường phố OSRM thực tế."
                 if not solution.fallback_used
-                else "Tie-break resolved using resilient Haversine (1.35x detour) fallback."
+                else "Phân giải hòa vote thành công qua cơ chế dự phòng Haversine (1.35x)."
             ),
         )

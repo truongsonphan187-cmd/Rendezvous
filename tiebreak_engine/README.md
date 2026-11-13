@@ -1,29 +1,29 @@
-# 📍 Ordered Median Tie-Break Engine (`tiebreak_engine`)
+# 📍 Module Phân Giải Hòa Vote Bằng Ordered Median Problem (`tiebreak_engine`)
 
-> **Multi-Criteria Optimization Module for Group Outings & Meeting Schedulers**  
-> Resolves tied location votes using a **Two-Tier Non-Linear Cost & Ordered Median Problem (OMP)** model.
+> **Module Tối Ưu Hóa Đa Tiêu Chí Dành Cho Ứng Dụng Lên Lịch Đi Chơi Nhóm**  
+> Tự động phân giải các điểm hẹn có lượt bình chọn (vote) bằng nhau thông qua mô hình:  
+> **Hàm Phạt Khoảng Cách Phi Tuyến + Bộ Lọc Thứ Hạng Ordered Median (OMP)**.
 
 ---
 
-## 🚀 Quickstart: Launch Interactive Playground
+## 🚀 Khởi Động Nhanh: Mở Giao Diện Thử Nghiệm Trực Quan (Playground)
 
-Anyone on the team can test and visualize the algorithm with interactive sliders and a real-time OpenStreetMap:
+Bất kỳ thành viên nào trong nhóm hoặc giảng viên đều có thể khởi chạy môi trường thử nghiệm với bản đồ OpenStreetMap thực tế và các thanh gạt trọng số:
 
 ```bash
-# 1. Install dependencies (if not already installed)
+# 1. Cài đặt các gói phụ thuộc tối thiểu (nếu chưa có)
 pip install -r tiebreak_engine/requirements.txt
 
-# 2. Run the Playground server
+# 2. Khởi chạy server Playground
 python tiebreak_engine/playground/run_playground.py
 ```
 
-Then open your browser at **[http://localhost:8080](http://localhost:8080)**.
+Sau đó mở trình duyệt tại: **[http://localhost:8080](http://localhost:8080)**.
 
-### 🛑 How to Stop the Playground Server:
-* **Normal stop:** Press `Ctrl + C` in the terminal where the server is running.
-* **If the terminal is closed or port 8080 is stuck (Windows PowerShell):**
+### 🛑 Cách Dừng Server Playground:
+* **Cách thông thường:** Nhấn tổ hợp phím `Ctrl + C` trong cửa sổ Terminal đang chạy server.
+* **Nếu đóng mất Terminal hoặc cổng 8080 bị kẹt (Windows PowerShell):**
   ```powershell
-  # Free up port 8080 by stopping the owning process
   Stop-Process -Id (Get-NetTCPConnection -LocalPort 8080).OwningProcess -Force
   ```
 * **macOS / Linux:**
@@ -31,36 +31,47 @@ Then open your browser at **[http://localhost:8080](http://localhost:8080)**.
   lsof -ti:8080 | xargs kill -9
   ```
 
-### Features in the Playground:
-* **Interactive Sliders:**
-  * **Penalty Exponent $(k)$**: Shift from linear distance ($k=1.0$) to aggressive commute penalties ($k=1.5, 2.0$).
-  * **Fairness Factor $(\lambda)$**: Tune between group efficiency (MinSum $\lambda=0.0$) and outlier protection (MinMax $\lambda \ge 1.0$).
-* **Real-time Map:** Visualizes participant homes, candidate venues, and route lines.
-* **Step-by-Step Math Card:** Shows exact calculation steps, sorted cost ranks, and weighted scores.
-* **Combinations Comparison Table:** Ranks all candidate combinations from winner to runners-up.
+---
+
+## 🌟 Các Tính Năng Nổi Bật Trong Giao Diện Playground
+
+1. **Bản Đồ Đường Phố OSRM Thực Tế (Không Dùng Đường Thẳng / Chim Bay):**
+   * Sử dụng API OpenStreetMap Routing Machine với dữ liệu GeoJSON chi tiết.
+   * Lộ trình uốn lượn chính xác qua từng ngã tư, cây cầu và tuyến phố tại TP.HCM và Hà Nội.
+   * Mỗi thành viên được mã hóa một màu sắc riêng để dễ dàng quan sát lộ trình xe chạy.
+2. **2 Chế Độ Chạy Rõ Ràng:**
+   * **📘 OMP Thuần Túy (Standard OMP):** Khóa cứng $k = 1.0$ theo đúng chuẩn sách giáo khoa toán tối ưu vị trí (Nickel & Puerto).
+   * **🚀 OMP + Phạt Cấp Số Nhân:** Mở khóa thanh trượt $k > 1.0$ ($c_i = d_i^k$) để phạt nặng những ai đi xa.
+3. **Quy Trình 3 Bước Trực Quan (Visual OMP Pipeline):**
+   * **Bước 1:** Tính chi phí khoảng cách cá nhân $d_i$.
+   * **Bước 2 (Chữ ORDERED):** Sắp xếp thứ tự chi phí từ gần nhất đến xa nhất $c_{(1)} \le \dots \le c_{(N)}$.
+   * **Bước 3 (Chữ MEDIAN / OMP):** Nhân vector trọng số rank $w_i \times c_{(i)}$ ra tổng điểm phạt $\Psi$.
+4. **Kéo Thả Icon Trực Tiếp Trên Bản Đồ (Drag & Drop):**
+   * Có thể cầm chuột kéo nhà của bạn bè hoặc vị trí quán ăn đi bất cứ đâu, hệ thống sẽ tự động vẽ lại đường và tính lại điểm tức thì.
 
 ---
 
-## 🛠️ Developer Customization Zone: `core/scoring_formula.py`
+## 🛠️ Vùng Đất Dành Riêng Cho Developer: `core/scoring_formula.py`
 
-All mathematical penalty curves and ranking weights are isolated in **`tiebreak_engine/core/scoring_formula.py`**.
+Toàn bộ biểu thức toán học và công thức trọng số được cô lập hoàn toàn tại file:  
+👉 **`tiebreak_engine/core/scoring_formula.py`**.
 
-You can modify the scoring logic directly in pure Python without touching routing, API, or database code:
+Developer có thể vào đây tự do chỉnh sửa công thức bằng Python thuần mà không sợ làm ảnh hưởng đến tầng API, bản đồ hay cơ sở dữ liệu:
 
 ```python
 # tiebreak_engine/core/scoring_formula.py
 
 def compute_individual_penalty(distance_km: float, penalty_exponent: float = 1.0) -> float:
     """
-    Tier 1: Adjust how individual distance is penalized.
-    E.g. change to distance_km ** 1.5, or add threshold penalties.
+    TẦNG 1: Thay đổi cách phạt quãng đường cá nhân.
+    Ví dụ: giữ nguyên bậc 1, hoặc lũy thừa 1.5, hoặc bình phương.
     """
     return float(distance_km ** penalty_exponent)
 
 
 def generate_ordered_median_weights(num_participants: int, fairness_factor: float = 0.5) -> list[float]:
     """
-    Tier 2: Adjust how rank weights W = (w_1, ..., w_n) are assigned to sorted costs.
+    TẦNG 2: Thay đổi cách phân bổ vector trọng số thứ tự W = (w_1, ..., w_n).
     """
     weights = [1.0 + fairness_factor * (i / (num_participants - 1)) for i in range(num_participants)]
     return weights
@@ -68,14 +79,14 @@ def generate_ordered_median_weights(num_participants: int, fairness_factor: floa
 
 ---
 
-## 🔌 Integration Guide for the Backend Team
+## 🔌 Hướng Dẫn Tích Hợp Vào Backend Của Nhóm
 
-The module is designed to plug directly into `backend/app/domain/patterns/TieBreak` or application services.
+Module được thiết kế dạng Facade Service, cắm thẳng vào `backend/app/domain/patterns/TieBreak/` hoặc gọi từ routers.
 
-### Step 1: Copy `tiebreak_engine/` into your project
-Place the `tiebreak_engine` folder inside your repository (e.g. `backend/app/domain/patterns/TieBreak/` or `backend/app/services/`).
+### Bước 1: Sao chép thư mục `tiebreak_engine/` vào repo
+Thả thư mục `tiebreak_engine/` vào dự án (ví dụ đặt tại `backend/app/domain/patterns/TieBreak/`).
 
-### Step 2: Call the Service
+### Bước 2: Gọi Service xử lý Tie-Break
 
 ```python
 from tiebreak_engine.integration.tie_break_service import TieBreakService
@@ -86,115 +97,114 @@ from tiebreak_engine.integration.schemas import (
     CandidatePlace,
 )
 
-# Initialize service (reuses in-memory cache)
+# 1. Khởi tạo service (tận dụng bộ nhớ đệm RAM)
 service = TieBreakService()
 
-# Build request payload
+# 2. Xây dựng payload dữ liệu đầu vào
 request = TieBreakRequest(
     participants=[
         ParticipantLocation(id="u1", name="An", lat=10.7769, lng=106.7009),
-        ParticipantLocation(id="u2", name="Binh", lat=10.7550, lng=106.6660),
-        ParticipantLocation(id="u3", name="Cuong", lat=10.8030, lng=106.6950),
+        ParticipantLocation(id="u2", name="Bình", lat=10.7550, lng=106.6660),
+        ParticipantLocation(id="u3", name="Cường", lat=10.8030, lng=106.6950),
     ],
     slots=[
         ItinerarySlot(
             slot_id="slot_lunch",
-            slot_name="Lunch (12:00 PM)",
+            slot_name="Ăn trưa (12:00)",
             candidates=[
-                CandidatePlace(id="c1", name="Restaurant A", lat=10.7780, lng=106.6850),
-                CandidatePlace(id="c2", name="Restaurant B", lat=10.7580, lng=106.7030),
+                CandidatePlace(id="c1", name="Quán Cơm A", lat=10.7780, lng=106.6850),
+                CandidatePlace(id="c2", name="Quán Bún B", lat=10.7580, lng=106.7030),
             ],
         )
     ],
-    penalty_exponent=1.0,  # k factor
-    fairness_factor=0.5,   # lambda factor
-    enable_osrm=True,      # Uses live OSRM with auto-fallback to Haversine (1.35x)
+    penalty_exponent=1.0,  # Hệ số phạt lũy thừa k
+    fairness_factor=0.5,   # Trọng số công bằng lambda
+    enable_osrm=True,      # Bật OSRM đường phố thực tế (tự fallback nếu mất mạng)
 )
 
-# Execute
+# 3. Thực thi giải bài toán tối ưu
 response = await service.resolve(request)
 
-# Access results
-print("Winning Venue Combination:", [c.name for c in response.selected_combination])
-print("Objective Score (Psi):", response.total_penalty_score)
-print("Execution Time:", response.execution_time_ms, "ms")
-for breakdown in response.participant_breakdowns:
-    print(f"User {breakdown.name}: {breakdown.total_distance_km} km | Cost: {breakdown.penalized_cost} | Rank: {breakdown.rank}")
+# 4. Trích xuất kết quả
+print("Quán chiến thắng:", [c.name for c in response.selected_combination])
+print("Tổng điểm mục tiêu (Psi):", response.total_penalty_score)
+print("Thời gian chạy:", response.execution_time_ms, "ms")
+for item in response.participant_breakdowns:
+    print(f"- {item.name}: đi {item.total_distance_km} km | Điểm phạt: {item.penalized_cost} | Hạng: {item.rank}")
 ```
 
 ---
 
-## 🧪 Running Automated Tests
+## 🧪 Chạy Bộ Kiểm Thử Tự Động (Unit Tests)
 
-Run the full automated test suite (18 unit and integration tests):
+Chạy toàn bộ 18 test cases kiểm thử toán học, định tuyến và API:
 
 ```bash
 python -m unittest discover -s tiebreak_engine/tests -v
 ```
 
-All tests run using Python's standard library `unittest` with **zero external test runners required**.
+Tất cả các bài test chạy bằng thư viện chuẩn `unittest` của Python, **không cần cài đặt thêm pytest hay thư viện ngoài**.
 
 ---
 
-## 📂 Package Architecture
+## 🌿 Hướng Dẫn Git: Cách Đẩy Code Lên Nhánh Phụ Của Nhóm
+
+### Trường hợp 1: Nếu đã clone repo nhóm ở thư mục khác
+1. Copy thư mục `tiebreak_engine/` và file `SPEC.md` dán vào thư mục repo đó.
+2. Mở Terminal tại repo nhóm và chạy:
+   ```bash
+   git checkout -b feat/tiebreak-engine
+   git add tiebreak_engine SPEC.md
+   git commit -m "feat(algorithm): implement ordered median tiebreak engine and playground"
+   git push -u origin feat/tiebreak-engine
+   ```
+
+### Trường hợp 2: Nếu đẩy trực tiếp từ thư mục hiện tại
+1. Khởi tạo git và liên kết với remote của nhóm:
+   ```bash
+   git init
+   git remote add origin <URL_REPO_CUA_NHOM>
+   git fetch origin
+   ```
+2. Tạo nhánh mới và push:
+   ```bash
+   git checkout -b feat/tiebreak-engine
+   git add tiebreak_engine SPEC.md
+   git commit -m "feat(algorithm): implement ordered median tiebreak engine and playground"
+   git push -u origin feat/tiebreak-engine
+   ```
+3. Lên GitHub/GitLab bấm nút **"Compare & pull request"** để gửi PR cho cả nhóm mà không sợ ảnh hưởng đến nhánh `main`.
+
+---
+
+## 📂 Sơ Đồ Cấu Trúc Thư Mục
 
 ```text
 tiebreak_engine/
-├── README.md                      # This onboarding guide
-├── requirements.txt               # fastapi, uvicorn, httpx, pydantic
+├── README.md                      # Tài liệu hướng dẫn sử dụng tiếng Việt
+├── requirements.txt               # Các gói phụ thuộc tối thiểu (fastapi, uvicorn, httpx, pydantic)
 │
-├── core/                          # Pure algorithm core (no DB lock-in)
-│   ├── scoring_formula.py         # [CUSTOMIZE HERE] Penalty math & rank weights
-│   ├── ordered_median.py          # OMP rank sorting & dot product aggregator
-│   ├── itinerary_solver.py        # Fixed-itinerary combinatorial evaluator
-│   └── router.py                  # OSRM HTTP client + LRU cache + Haversine fallback
+├── core/                          # Thuật toán toán học độc lập (Pure Python)
+│   ├── scoring_formula.py         # [VÙNG CỦA DEV] Tự do chỉnh công thức phạt và trọng số OMP
+│   ├── ordered_median.py          # Thuật toán OMP sắp xếp thứ tự và tính tích vô hướng
+│   ├── itinerary_solver.py        # Đánh giá tổ hợp chuỗi hành trình cố định
+│   └── router.py                  # Client OSRM đường phố + Cache RAM + Dự phòng Haversine 1.35x
 │
-├── integration/                   # Pydantic DTOs & Service Facade
-│   ├── schemas.py                 # Request & Response models
-│   └── tie_break_service.py       # Async service interface
+├── integration/                   # Giao tiếp với Backend FastAPI của nhóm
+│   ├── schemas.py                 # Pydantic DTOs chuẩn hóa dữ liệu
+│   └── tie_break_service.py       # Facade Service cắm vào domain pattern TieBreak
 │
-├── playground/                    # Interactive visual sandbox
-│   ├── run_playground.py          # Standalone FastAPI server
-│   └── static/                    # Leaflet map, sliders, dynamic tables
+├── playground/                    # Giao diện Web thử nghiệm trực quan
+│   ├── run_playground.py          # Server FastAPI chạy môi trường sandbox
+│   └── static/                    # Giao diện Leaflet OSM, sliders và pipeline trực quan
 │       ├── index.html
 │       ├── app.js
 │       └── style.css
 │
-└── tests/                         # 18 automated tests
+└── tests/                         # Bộ 18 automated unit & integration tests
     ├── test_math.py
     ├── test_router.py
     ├── test_solver.py
     ├── test_service.py
     └── test_playground_api.py
 ```
-
----
-
-## 🌿 Git Guide: How to Push to Team Repository
-
-### Scenario A: If you already have the team's cloned repo in another folder
-1. Copy the `tiebreak_engine/` folder and `SPEC.md` into the root of that cloned repository.
-2. In the team repository terminal, run:
-   ```bash
-   git checkout -b feat/tiebreak-engine
-   git add tiebreak_engine SPEC.md
-   git commit -m "feat(algorithm): implement ordered median tiebreak engine and playground"
-   git push -u origin feat/tiebreak-engine
-   ```
-
-### Scenario B: If pushing directly from this folder
-1. Initialize git and link to the team's remote repo:
-   ```bash
-   git init
-   git remote add origin <TEAM_REPO_URL>
-   git fetch origin
-   ```
-2. Create and switch to your feature branch:
-   ```bash
-   git checkout -b feat/tiebreak-engine
-   git add tiebreak_engine SPEC.md
-   git commit -m "feat(algorithm): implement ordered median tiebreak engine and playground"
-   git push -u origin feat/tiebreak-engine
-   ```
-3. Open your browser on GitHub/GitLab and click **"Compare & pull request"** to merge without disturbing the `main` or `develop` branches.
-

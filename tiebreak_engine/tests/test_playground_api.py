@@ -20,19 +20,18 @@ class TestPlaygroundAPI(unittest.TestCase):
         res = self.client.get("/api/sample-data")
         self.assertEqual(res.status_code, 200)
         presets = res.json().get("presets", {})
-        self.assertIn("hcmc_5_friends", presets)
-        self.assertIn("hanoi_outlier", presets)
+        self.assertIn("saigon_outlier_conflict", presets)
+        self.assertIn("hanoi_river_crossing", presets)
 
     def test_tiebreak_api(self):
-        # Fetch preset and execute tiebreak
         sample_res = self.client.get("/api/sample-data")
-        preset = sample_res.json()["presets"]["hcmc_5_friends"]
+        preset = sample_res.json()["presets"]["saigon_outlier_conflict"]
 
         payload = {
             "participants": preset["participants"],
             "slots": preset["slots"],
             "penalty_exponent": 1.0,
-            "fairness_factor": 0.5,
+            "fairness_factor": 0.0,
             "enable_osrm": False,
         }
 
@@ -40,7 +39,7 @@ class TestPlaygroundAPI(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         body = res.json()
         self.assertTrue(body["success"])
-        self.assertEqual(len(body["selected_combination"]), 2)
+        self.assertEqual(len(body["selected_combination"]), 1)
         self.assertGreater(body["total_penalty_score"], 0)
 
     def test_serve_static_index(self):
