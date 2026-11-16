@@ -36,20 +36,6 @@
     <div class="main-layout">
       <!-- SIDEBAR -->
       <aside class="sidebar">
-        <!-- SCENARIO BRIEF -->
-        <section class="card scenario-card">
-          <div class="card-header">
-            <h3>🎯 Hướng dẫn Test Kịch bản</h3>
-            <span class="badge" id="tipping-badge">Kèo Lật: k ≈ 1.6</span>
-          </div>
-          <p id="scenario-desc" class="scenario-text">
-            Kéo hệ số để thấy quán thắng LẬT KÈO rõ rệt giữa ưu tiên số đông và bảo vệ bạn ở xa!
-          </p>
-          <div class="tip-box">
-            💡 <strong>Mẹo:</strong> Bạn có thể <strong>kéo thả trực tiếp</strong> các icon nhà và quán trên bản đồ để thử nghiệm bất kỳ tọa độ nào!
-          </div>
-        </section>
-
         <!-- PARAMETER TUNING -->
         <section class="card parameter-tuning">
           <div class="card-header">
@@ -107,24 +93,6 @@
             </div>
           </div>
         </section>
-
-        <!-- PARTICIPANTS LIST -->
-        <section class="card">
-          <div class="card-header">
-            <h3>👥 Thành viên (<span id="participant-count">0</span>)</h3>
-            <span class="sub-badge">Tọa độ Nhà</span>
-          </div>
-          <div id="participants-list" class="items-list"></div>
-        </section>
-
-        <!-- SLOTS & CANDIDATES -->
-        <section class="card">
-          <div class="card-header">
-            <h3>🗓️ Chặng đi chơi & Ứng viên hòa vote (<span id="slot-count">0</span>)</h3>
-            <span class="sub-badge">Candidates</span>
-          </div>
-          <div id="slots-list" class="items-list"></div>
-        </section>
       </aside>
 
       <!-- CONTENT AREA -->
@@ -154,10 +122,6 @@
 
           <!-- METRIC CARDS -->
           <div class="metric-cards-grid">
-            <div class="metric-card gold-border">
-              <span class="metric-label">Quán / Lộ Trình Chiến Thắng</span>
-              <div id="winning-itinerary-names" class="metric-value highlight">Loading...</div>
-            </div>
             <div class="metric-card">
               <span class="metric-label">Tổng Điểm Mục Tiêu (Ψ)</span>
               <div id="metric-psi" class="metric-value">--</div>
@@ -169,46 +133,6 @@
             <div class="metric-card">
               <span class="metric-label">Người Đi Xa Nhất (Outlier)</span>
               <div id="metric-max-dist" class="metric-value">--</div>
-            </div>
-          </div>
-
-          <!-- VISUAL ORDERED MEDIAN PIPELINE -->
-          <div class="pipeline-section">
-            <div class="section-title-row">
-              <h4>🔍 Minh Chứng Bản Chất Thuật Toán: Ordered Median Hoạt Động Ra Sao?</h4>
-              <span class="theory-tag">Cơ chế: Sắp xếp thứ hạng (Ordered) &rarr; Nhân trọng số (Median)</span>
-            </div>
-
-            <div class="pipeline-grid">
-              <!-- BƯỚC 1 -->
-              <div class="pipeline-card">
-                <div class="pipeline-badge">BƯỚC 1: CHI PHÍ CÁ NHÂN</div>
-                <div class="pipeline-formula">c<sub>i</sub> = d<sub>i</sub><sup>k</sup></div>
-                <p class="pipeline-desc">Tính quãng đường thực tế d<sub>i</sub> của từng bạn đến quán</p>
-                <div id="step-1-container" class="pipeline-items-list"></div>
-              </div>
-
-              <!-- MŨI TÊN CHUYỂN -->
-              <div class="pipeline-arrow">&rarr;</div>
-
-              <!-- BƯỚC 2: ORDERED -->
-              <div class="pipeline-card highlight-step">
-                <div class="pipeline-badge gold">BƯỚC 2: SẮP XẾP THỨ HẠNG (ORDERED)</div>
-                <div class="pipeline-formula">c<sub>(1)</sub> &le; c<sub>(2)</sub> &le; ... &le; c<sub>(n)</sub></div>
-                <p class="pipeline-desc">Trọng tâm OMP: Xếp từ người đi gần nhất đến người đi xa nhất</p>
-                <div id="step-2-container" class="pipeline-items-list"></div>
-              </div>
-
-              <!-- MŨI TÊN CHUYỂN -->
-              <div class="pipeline-arrow">&rarr;</div>
-
-              <!-- BƯỚC 3: AGGREGATOR -->
-              <div class="pipeline-card">
-                <div class="pipeline-badge blue">BƯỚC 3: NHÂN TRỌNG SỐ THỨ HẠNG (OMP)</div>
-                <div class="pipeline-formula">&Psi; = &Sigma; (w<sub>i</sub> &times; c<sub>(i)</sub>)</div>
-                <p class="pipeline-desc">Nhân trọng số thứ tự w<sub>i</sub> để tính tổng điểm phạt</p>
-                <div id="step-3-container" class="pipeline-calc-box"></div>
-              </div>
             </div>
           </div>
 
