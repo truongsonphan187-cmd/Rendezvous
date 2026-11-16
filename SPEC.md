@@ -3,7 +3,7 @@
 > **Dự án:** Ứng dụng Web Lên Lịch Đi Chơi Nhóm (Đồ án Tư Duy Tính Toán / Computational Thinking)  
 > **Thành phần:** Module Phân Giải Hòa Vote Đa Tiêu Chí sử dụng Ordered Median Problem (OMP)  
 > **Đối tượng:** Đội ngũ phát triển (Developers), Kỹ sư Backend và Hội đồng Đánh giá Đồ án  
-> **Trạng thái:** Đã hoàn thành & Nghiệm thu (100% Passed)  
+> **Dữ liệu tham khảo:** Ting, P.-H., Hwang, J.-R., Doong, J.-L., & Jeng, M.-C. (2008). Driver fatigue and highway driving: A simulator study. *Physiology & Behavior, 94*(3), 448–453. https://doi.org/10.1016/j.physbeh.2008.02.015  
 > **Phiên bản:** 1.2.0  
 
 ---
