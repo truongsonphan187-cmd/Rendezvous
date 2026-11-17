@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=2.2">
 </head>
 <body>
   <div class="app-container">
@@ -22,12 +22,11 @@
         </div>
       </div>
       <div class="header-actions">
-        <label for="preset-select" class="preset-label">Kịch bản Test:</label>
-        <select id="preset-select" class="preset-dropdown">
-          <!-- Populated by JS -->
-        </select>
-        <button id="run-btn" class="btn-primary">
-          <span class="btn-icon">⚡</span> Run Optimization
+        <div class="live-pill">
+          <span class="live-dot"></span> Tự động giải toán theo thời gian thực
+        </div>
+        <button id="reset-default-btn" class="btn-reset" title="Khôi phục 4 người và 2 quán mặc định tại TP.HCM">
+          <span>🔄</span> Đặt lại mặc định
         </button>
       </div>
     </header>
@@ -92,6 +91,30 @@
               <p class="control-hint">Bật: Vẽ đường uốn lượn thật qua ngã tư/cầu. Tắt: Haversine 1.35x.</p>
             </div>
           </div>
+        </section>
+
+        <!-- PARTICIPANTS MANAGEMENT -->
+        <section class="card">
+          <div class="card-header">
+            <h3>👥 Thành viên</h3>
+            <button id="add-participant-btn" class="btn-action-sm" type="button">
+              <span>➕</span> Thêm người
+            </button>
+          </div>
+          <p class="section-hint">Kéo thả icon 👤 trên bản đồ để đổi vị trí, hoặc sửa tên/xóa người:</p>
+          <div id="participants-list" class="entities-list"></div>
+        </section>
+
+        <!-- CANDIDATES MANAGEMENT -->
+        <section class="card">
+          <div class="card-header">
+            <h3>📍 Ứng viên Chặng 1</h3>
+            <button id="add-candidate-btn" class="btn-action-sm" type="button">
+              <span>➕</span> Thêm địa điểm
+            </button>
+          </div>
+          <p class="section-hint">Kéo thả icon 📍 trên bản đồ để đổi vị trí, hoặc thêm/bớt địa điểm:</p>
+          <div id="candidates-list" class="entities-list"></div>
         </section>
       </aside>
 
@@ -181,6 +204,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=2.2"></script>
 </body>
 </html>
