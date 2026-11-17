@@ -791,6 +791,26 @@ input:checked + .toggle-slider:before {
   color: #0f172a;
 }
 
+.btn-del-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+  font-size: 0.725rem;
+  font-weight: 700;
+  padding: 0.3rem 0.55rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-del-sm:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
 .section-hint {
   font-size: 0.725rem;
   color: var(--text-muted);
@@ -918,4 +938,39 @@ input:checked + .toggle-slider:before {
 .btn-del:disabled, .btn-del-cand:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* SLOTS TAB BAR (D1 - D5) */
+.slots-tab-bar {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+.slot-tab {
+  flex: 1;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.slot-tab:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.slot-tab.active {
+  background-color: rgba(56, 189, 248, 0.18);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.25);
 }

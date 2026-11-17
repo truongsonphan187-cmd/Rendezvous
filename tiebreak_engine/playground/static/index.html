@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  <link rel="stylesheet" href="/static/style.css?v=2.2">
+  <link rel="stylesheet" href="/static/style.css?v=2.4">
 </head>
 <body>
   <div class="app-container">
@@ -105,15 +105,24 @@
           <div id="participants-list" class="entities-list"></div>
         </section>
 
-        <!-- CANDIDATES MANAGEMENT -->
+        <!-- CANDIDATES MANAGEMENT (MULTI-SLOTS) -->
         <section class="card">
           <div class="card-header">
-            <h3>📍 Ứng viên Chặng 1</h3>
-            <button id="add-candidate-btn" class="btn-action-sm" type="button">
-              <span>➕</span> Thêm địa điểm
-            </button>
+            <h3 id="slot-section-title">📍 Ứng viên Chặng 1 (D1)</h3>
+            <div style="display: flex; gap: 0.35rem;">
+              <button id="add-candidate-btn" class="btn-action-sm" type="button" title="Thêm địa điểm cho chặng đang chọn">
+                <span>➕</span> Thêm địa điểm
+              </button>
+              <button id="add-slot-btn" class="btn-action-sm" type="button" title="Thêm chặng mới (tối đa 5 chặng)">
+                <span>➕</span> Thêm chặng
+              </button>
+            </div>
           </div>
-          <p class="section-hint">Kéo thả icon 📍 trên bản đồ để đổi vị trí, hoặc thêm/bớt địa điểm:</p>
+
+          <!-- Dynamic Slots Tab Bar (D1 -> D5) -->
+          <div class="slots-tab-bar" id="slots-tab-bar"></div>
+
+          <p class="section-hint">Kéo thả icon Dx trên bản đồ để đổi vị trí, hoặc thêm/bớt địa điểm:</p>
           <div id="candidates-list" class="entities-list"></div>
         </section>
       </aside>
@@ -124,9 +133,9 @@
         <div class="map-wrapper">
           <div id="map"></div>
           <div class="map-legend">
-            <div class="legend-item"><span class="dot dot-participant"></span> Nhà thành viên (Kéo thả được)</div>
-            <div class="legend-item"><span class="dot dot-candidate"></span> Quán ứng viên (Hòa vote)</div>
-            <div class="legend-item"><span class="dot dot-winner"></span> Quán chiến thắng (Thực tế)</div>
+            <div class="legend-item"><span class="dot dot-participant"></span> Thành viên (P1..Pn)</div>
+            <div class="legend-item"><span class="dot dot-candidate"></span> Ứng viên (Dx màu cam)</div>
+            <div class="legend-item"><span class="dot dot-winner"></span> Được chọn (Dx màu vàng)</div>
           </div>
         </div>
 
@@ -204,6 +213,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="/static/app.js?v=2.2"></script>
+  <script src="/static/app.js?v=2.4"></script>
 </body>
 </html>

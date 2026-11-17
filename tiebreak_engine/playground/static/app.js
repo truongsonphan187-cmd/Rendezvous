@@ -1,5 +1,5 @@
 // =============================================================================
-// APP.JS - Dynamic Real-Time Ordered Median Sandbox (Add/Remove & Drag Anywhere)
+// APP.JS - Dynamic Real-Time Ordered Median Sandbox (Default 1-Slot, Custom up to 5)
 // =============================================================================
 
 let map = null;
@@ -8,6 +8,7 @@ let routesGroup = null;
 let isPureOmpMode = true; // true: locks k=1.0 (Standard OMP), false: unlocks k > 1.0
 let optDebounceTimer = null;
 let lastSelectedCandidateIds = [];
+let activeSlotIdx = 0; // Active slot index for sidebar editing
 
 // Palette of 15 vibrant colors for participants
 const PARTICIPANT_COLORS = [
@@ -32,22 +33,22 @@ const PARTICIPANT_COLORS = [
 const $ = (id) => document.getElementById(id);
 
 // =============================================================================
-// 1. DEFAULT DATASET (4 Thành viên & 2 Địa điểm Chặng 1 tại TP.HCM)
+// 1. DEFAULT DATASET (Mặc định: 4 Người & 1 Chặng với 2 Ứng viên tránh cháy API)
 // =============================================================================
 const DEFAULT_PARTICIPANTS = [
-  { id: "u1", name: "An (Bình Thạnh)", lat: 10.8120, lng: 106.6980 },
-  { id: "u2", name: "Bình (Phú Nhuận)", lat: 10.8020, lng: 106.6800 },
-  { id: "u3", name: "Cường (Gò Vấp)", lat: 10.8350, lng: 106.6720 },
-  { id: "u4", name: "Dũng (Quận 7 - Bạn ở xa)", lat: 10.7200, lng: 106.7150 },
+  { id: "u1", name: "Người 1", lat: 10.8120, lng: 106.6980 },
+  { id: "u2", name: "Người 2", lat: 10.8020, lng: 106.6800 },
+  { id: "u3", name: "Người 3", lat: 10.8350, lng: 106.6720 },
+  { id: "u4", name: "Người 4", lat: 10.7200, lng: 106.7150 },
 ];
 
 const DEFAULT_SLOTS = [
   {
     slot_id: "slot_1",
-    slot_name: "Chặng 1 - Hòa Vote",
+    slot_name: "Chặng 1",
     candidates: [
-      { id: "cand_bac", name: "Quán 1 (Gò Vấp - Tiện 3 bạn Bắc)", lat: 10.8250, lng: 106.6850 },
-      { id: "cand_trungtam", name: "Quán 2 (Quận 3 - Cân bằng)", lat: 10.7780, lng: 106.6890 },
+      { id: "cand_1_1", name: "Địa điểm 1.1", lat: 10.8250, lng: 106.6850 },
+      { id: "cand_1_2", name: "Địa điểm 1.2", lat: 10.7780, lng: 106.6890 },
     ],
   },
 ];
@@ -82,7 +83,7 @@ function initMap() {
 function createCustomIcon(color, label, isWinner = false) {
   const size = isWinner ? 36 : 28;
   const border = isWinner ? "3px solid #fbbf24" : "2px solid #ffffff";
-  const shadow = isWinner ? "0 0 14px rgba(251, 191, 36, 1)" : "0 2px 6px rgba(0,0,0,0.45)";
+  const shadow = isWinner ? "0 0 16px rgba(251, 191, 36, 1)" : "0 2px 6px rgba(0,0,0,0.45)";
 
   return L.divIcon({
     className: "custom-leaflet-pin",
@@ -109,19 +110,17 @@ function createCustomIcon(color, label, isWinner = false) {
 }
 
 // =============================================================================
-// 3. RENDER MAP MARKERS (RETURNS DICT OF MARKERS BY ID)
+// 3. RENDER MAP MARKERS (Dx NOTATION FOR SLOTS, NO STARS)
 // =============================================================================
 function renderMapMarkers() {
   if (!map || !markersGroup) return {};
   markersGroup.clearLayers();
 
   const createdMarkers = {};
-  const bounds = [];
 
   // 1. Participant Homes (P1, P2...)
   currentData.participants.forEach((p, idx) => {
     const latLng = [p.lat, p.lng];
-    bounds.push(latLng);
     const color = PARTICIPANT_COLORS[idx % PARTICIPANT_COLORS.length];
 
     const marker = L.marker(latLng, {
@@ -141,21 +140,21 @@ function renderMapMarkers() {
     createdMarkers[p.id] = marker;
   });
 
-  // 2. Candidate Venues (C1, C2... or ★ if Winner)
-  const slot = currentData.slots[0];
-  if (slot && slot.candidates) {
-    slot.candidates.forEach((c, idx) => {
+  // 2. Candidate Venues for all slots (D1..D5)
+  currentData.slots.forEach((slot, sIdx) => {
+    const slotLabel = `D${sIdx + 1}`; // All candidates of slot sIdx have label Dx
+
+    slot.candidates.forEach((c) => {
       const latLng = [c.lat, c.lng];
-      bounds.push(latLng);
       const isWinner = lastSelectedCandidateIds.includes(c.id);
+      // Winner is GOLD (#fbbf24) with label Dx, losing is ORANGE (#ea580c) with label Dx
       const color = isWinner ? "#fbbf24" : "#ea580c";
-      const iconLabel = isWinner ? "★" : `C${idx + 1}`;
 
       const marker = L.marker(latLng, {
-        icon: createCustomIcon(color, iconLabel, isWinner),
+        icon: createCustomIcon(color, slotLabel, isWinner),
         draggable: true,
       }).bindPopup(
-        `<b>📍 ${c.name}</b>${isWinner ? "<br><b style='color:#fbbf24'>🏆 ĐỊA ĐIỂM CHIẾN THẮNG</b>" : ""}<br>Kéo thả icon để thay đổi vị trí quán!`
+        `<b>📍 ${c.name} (${slotLabel})</b>${isWinner ? "<br><b style='color:#fbbf24'>🏆 ĐỊA ĐIỂM ĐƯỢC CHỌN</b>" : ""}<br>Kéo thả icon để thay đổi vị trí quán!`
       );
 
       marker.on("dragend", (e) => {
@@ -169,7 +168,7 @@ function renderMapMarkers() {
       markersGroup.addLayer(marker);
       createdMarkers[c.id] = marker;
     });
-  }
+  });
 
   return createdMarkers;
 }
@@ -180,7 +179,8 @@ function updateCoordLabels() {
     const el = $(`coord-p-${idx}`);
     if (el) el.textContent = `${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}`;
   });
-  const slot = currentData.slots[0];
+
+  const slot = currentData.slots[activeSlotIdx];
   if (slot) {
     slot.candidates.forEach((c, idx) => {
       const el = $(`coord-c-${idx}`);
@@ -198,7 +198,7 @@ function drawRealRoadRoutes(data) {
 
   const isOsrmActive = $("osrm-toggle") ? $("osrm-toggle").checked && !data.fallback_used : false;
 
-  // Shared Itinerary Path
+  // Shared Itinerary Path connecting D1 -> D2 -> ... -> Dk
   if (data.shared_itinerary_geometry && data.shared_itinerary_geometry.length > 0) {
     const leafletCoords = data.shared_itinerary_geometry.map((pt) => [pt[1], pt[0]]);
     L.polyline(leafletCoords, {
@@ -208,7 +208,7 @@ function drawRealRoadRoutes(data) {
     }).addTo(routesGroup);
   }
 
-  // Individual Commute Paths
+  // Individual Commute Paths (Nhà -> Chặng đầu và Chặng cuối -> Nhà)
   data.participant_breakdowns.forEach((p, idx) => {
     const color = PARTICIPANT_COLORS[idx % PARTICIPANT_COLORS.length];
 
@@ -235,7 +235,7 @@ function drawRealRoadRoutes(data) {
 }
 
 // =============================================================================
-// 5. SIDEBAR MANAGEMENT: RENDER LISTS, ADD, EDIT & DELETE
+// 5. SIDEBAR MANAGEMENT: PARTICIPANTS & CUSTOM SLOTS (UP TO 5)
 // =============================================================================
 function renderSidebarLists() {
   // 1. Participant List
@@ -253,7 +253,7 @@ function renderSidebarLists() {
             </div>
             <div class="entity-right">
               <span class="entity-coord-tag" id="coord-p-${idx}">${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}</span>
-              <button class="btn-del" data-idx="${idx}" title="Xóa thành viên này" ${canDelete ? "" : "disabled"}>✕</button>
+              <button class="btn-del" data-idx="${idx}" title="Xóa người này" ${canDelete ? "" : "disabled"}>✕</button>
             </div>
           </div>
         `;
@@ -280,19 +280,59 @@ function renderSidebarLists() {
     });
   }
 
-  // 2. Candidate Places List
-  const slot = currentData.slots[0];
+  // 2. Candidate Places List for Active Slot
+  renderActiveSlotCandidates();
+}
+
+function renderActiveSlotCandidates() {
+  if (activeSlotIdx >= currentData.slots.length) {
+    activeSlotIdx = currentData.slots.length - 1;
+  }
+  const slot = currentData.slots[activeSlotIdx];
   const cList = $("candidates-list");
+  const slotTitle = $("slot-section-title");
+  const addCBtn = $("add-candidate-btn");
+  const tabContainer = $("slots-tab-bar");
+
+  const slotDx = `D${activeSlotIdx + 1}`;
+  if (slotTitle) {
+    const canDeleteSlot = currentData.slots.length > 1;
+    slotTitle.innerHTML = `
+      📍 Ứng viên Chặng ${activeSlotIdx + 1} (${slotDx})
+      ${canDeleteSlot ? `<button id="del-slot-btn" class="btn-del-sm" type="button" title="Xóa chặng này">🗑️ Xóa chặng</button>` : ""}
+    `;
+    const delSlotBtn = $("del-slot-btn");
+    if (delSlotBtn) {
+      delSlotBtn.addEventListener("click", deleteCurrentSlot);
+    }
+  }
+
+  if (addCBtn) addCBtn.innerHTML = `<span>➕</span> Thêm địa điểm ${slotDx}`;
+
+  // Render Slots Tabs (D1, D2, D3...)
+  if (tabContainer) {
+    tabContainer.innerHTML = currentData.slots
+      .map((s, idx) => {
+        const isActive = idx === activeSlotIdx;
+        return `
+          <button class="slot-tab ${isActive ? "active" : ""}" data-slot-idx="${idx}" type="button">
+            D${idx + 1}
+          </button>
+        `;
+      })
+      .join("");
+  }
+
   if (cList && slot) {
     cList.innerHTML = slot.candidates
       .map((c, idx) => {
         const isWinner = lastSelectedCandidateIds.includes(c.id);
-        const canDelete = slot.candidates.length > 2;
+        const canDelete = slot.candidates.length > 1;
         return `
           <div class="entity-row" id="entity-c-${c.id}">
             <div class="entity-left">
               <span class="entity-badge badge-cand ${isWinner ? "badge-winner" : ""}">
-                ${isWinner ? "★" : "C" + (idx + 1)}
+                ${slotDx}
               </span>
               <input type="text" class="entity-input c-input" data-idx="${idx}" value="${c.name}" title="Click để sửa tên" />
             </div>
@@ -335,7 +375,7 @@ function addParticipant() {
 
   const newP = {
     id: `u_${Date.now()}`,
-    name: `Bạn ${count} (Mới)`,
+    name: `Người ${count}`,
     lat: parseFloat((center.lat + offsetLat).toFixed(4)),
     lng: parseFloat((center.lng + offsetLng).toFixed(4)),
   };
@@ -344,13 +384,11 @@ function addParticipant() {
   renderSidebarLists();
   const createdMarkers = renderMapMarkers();
 
-  // Focus map on newly created marker and open popup!
   if (map && createdMarkers && createdMarkers[newP.id]) {
     map.panTo([newP.lat, newP.lng], { animate: true, duration: 0.5 });
     createdMarkers[newP.id].openPopup();
   }
 
-  // Scroll to new row in sidebar and flash
   const newRow = $(`entity-p-${newP.id}`);
   if (newRow) {
     newRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -372,34 +410,33 @@ function deleteParticipant(idx) {
   scheduleOptimization(50);
 }
 
-// Add Candidate
+// Add Candidate to active slot
 function addCandidate() {
-  const slot = currentData.slots[0];
+  const slot = currentData.slots[activeSlotIdx];
   if (!slot) return;
 
   const count = slot.candidates.length + 1;
+  const slotNum = activeSlotIdx + 1;
   const center = map ? map.getCenter() : { lat: 10.785, lng: 106.695 };
   const offsetLat = (Math.random() - 0.5) * 0.035;
   const offsetLng = (Math.random() - 0.5) * 0.035;
 
   const newC = {
-    id: `cand_${Date.now()}`,
-    name: `Địa điểm ${count} (Ứng viên mới)`,
+    id: `cand_${slotNum}_${Date.now()}`,
+    name: `Địa điểm ${slotNum}.${count}`,
     lat: parseFloat((center.lat + offsetLat).toFixed(4)),
     lng: parseFloat((center.lng + offsetLng).toFixed(4)),
   };
 
   slot.candidates.push(newC);
-  renderSidebarLists();
+  renderActiveSlotCandidates();
   const createdMarkers = renderMapMarkers();
 
-  // Focus map on newly created candidate and open popup!
   if (map && createdMarkers && createdMarkers[newC.id]) {
     map.panTo([newC.lat, newC.lng], { animate: true, duration: 0.5 });
     createdMarkers[newC.id].openPopup();
   }
 
-  // Scroll to new row in sidebar and flash
   const newRow = $(`entity-c-${newC.id}`);
   if (newRow) {
     newRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -409,27 +446,88 @@ function addCandidate() {
   scheduleOptimization(50);
 }
 
-// Delete Candidate
+// Delete Candidate from active slot
 function deleteCandidate(idx) {
-  const slot = currentData.slots[0];
+  const slot = currentData.slots[activeSlotIdx];
   if (!slot) return;
 
-  if (slot.candidates.length <= 2) {
-    alert("Cần tối thiểu 2 quán để giải quyết bài toán hòa vote!");
+  if (slot.candidates.length <= 1) {
+    alert("Mỗi chặng cần tối thiểu 1 địa điểm dừng chân!");
     return;
   }
   slot.candidates.splice(idx, 1);
-  renderSidebarLists();
+  renderActiveSlotCandidates();
   renderMapMarkers();
   scheduleOptimization(50);
 }
 
-// Reset to Default Setup
+// Add New Slot (Custom up to 5 slots)
+function addSlot() {
+  if (currentData.slots.length >= 5) {
+    alert("Hệ thống hỗ trợ tối đa 5 chặng!");
+    return;
+  }
+  const newSlotIdx = currentData.slots.length;
+  const slotNum = newSlotIdx + 1;
+  const center = map ? map.getCenter() : { lat: 10.785, lng: 106.695 };
+  const offset1Lat = (Math.random() - 0.5) * 0.03;
+  const offset1Lng = (Math.random() - 0.5) * 0.03;
+  const offset2Lat = (Math.random() - 0.5) * 0.03;
+  const offset2Lng = (Math.random() - 0.5) * 0.03;
+
+  const newSlot = {
+    slot_id: `slot_${slotNum}`,
+    slot_name: `Chặng ${slotNum}`,
+    candidates: [
+      {
+        id: `cand_${slotNum}_1_${Date.now()}`,
+        name: `Địa điểm ${slotNum}.1`,
+        lat: parseFloat((center.lat + offset1Lat).toFixed(4)),
+        lng: parseFloat((center.lng + offset1Lng).toFixed(4)),
+      },
+      {
+        id: `cand_${slotNum}_2_${Date.now() + 1}`,
+        name: `Địa điểm ${slotNum}.2`,
+        lat: parseFloat((center.lat + offset2Lat).toFixed(4)),
+        lng: parseFloat((center.lng + offset2Lng).toFixed(4)),
+      },
+    ],
+  };
+
+  currentData.slots.push(newSlot);
+  activeSlotIdx = newSlotIdx;
+  renderActiveSlotCandidates();
+  renderMapMarkers();
+  scheduleOptimization(50);
+}
+
+// Delete Current Slot
+function deleteCurrentSlot() {
+  if (currentData.slots.length <= 1) {
+    alert("Cần tối thiểu 1 chặng để giải quyết hòa vote!");
+    return;
+  }
+  currentData.slots.splice(activeSlotIdx, 1);
+  // Re-number remaining slots
+  currentData.slots.forEach((s, i) => {
+    s.slot_id = `slot_${i + 1}`;
+    s.slot_name = `Chặng ${i + 1}`;
+  });
+  if (activeSlotIdx >= currentData.slots.length) {
+    activeSlotIdx = currentData.slots.length - 1;
+  }
+  renderActiveSlotCandidates();
+  renderMapMarkers();
+  scheduleOptimization(50);
+}
+
+// Reset to Default Setup (4 people, 1 slot with 2 options)
 function resetToDefault() {
   currentData = {
     participants: JSON.parse(JSON.stringify(DEFAULT_PARTICIPANTS)),
     slots: JSON.parse(JSON.stringify(DEFAULT_SLOTS)),
   };
+  activeSlotIdx = 0;
   lastSelectedCandidateIds = [];
   if (map) {
     map.setView([10.785, 106.695], 12);
@@ -513,10 +611,10 @@ function displayResults(data) {
     if (mMax) mMax.textContent = `${bestComboSummary.max_distance_km.toFixed(1)} km`;
   }
 
-  // Re-render markers with winner star (★) & draw real street routes
+  // Re-render markers with winner gold Dx & draw real street routes
   renderMapMarkers();
   drawRealRoadRoutes(data);
-  renderSidebarLists(); // update winner badge in sidebar
+  renderActiveSlotCandidates(); // update winner badges in active slot tab
 
   // Render Table 1: Participants sorted by Rank: c_(1) <= c_(2) <= ... <= c_(N)
   const sortedByRank = [...data.participant_breakdowns].sort((a, b) => a.rank - b.rank);
@@ -600,6 +698,7 @@ function setupEventListeners() {
 
   const addPBtn = $("add-participant-btn");
   const addCBtn = $("add-candidate-btn");
+  const addSlotBtn = $("add-slot-btn");
   const resetBtn = $("reset-default-btn");
 
   if (tabPure) {
@@ -659,11 +758,24 @@ function setupEventListeners() {
 
   if (addPBtn) addPBtn.addEventListener("click", addParticipant);
   if (addCBtn) addCBtn.addEventListener("click", addCandidate);
+  if (addSlotBtn) addSlotBtn.addEventListener("click", addSlot);
   if (resetBtn) resetBtn.addEventListener("click", resetToDefault);
+
+  // Slots Tab Bar (D1 -> D5) click delegation
+  const tabContainer = $("slots-tab-bar");
+  if (tabContainer) {
+    tabContainer.addEventListener("click", (e) => {
+      const btn = e.target.closest(".slot-tab");
+      if (btn) {
+        activeSlotIdx = parseInt(btn.getAttribute("data-slot-idx"));
+        renderActiveSlotCandidates();
+      }
+    });
+  }
 }
 
 // =============================================================================
-// 8. ROBUST BOOTSTRAP INITIALIZATION
+// 8. BOOTSTRAP INITIALIZATION
 // =============================================================================
 function startApp() {
   initMap();

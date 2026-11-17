@@ -117,6 +117,25 @@ class ItinerarySolver:
         slot_candidate_lists = [slot.candidates for slot in slots]
         all_combinations = list(itertools.product(*slot_candidate_lists))
 
+        # Tối ưu hóa: Thu thập tất cả các cặp tọa độ độc nhất và nạp song song (prefetch)
+        unique_coord_pairs = set()
+        for s_i in range(len(slots) - 1):
+            for c_from in slots[s_i].candidates:
+                for c_to in slots[s_i + 1].candidates:
+                    unique_coord_pairs.add((c_from.coord, c_to.coord))
+        for first_cand in slots[0].candidates:
+            for p in participants:
+                unique_coord_pairs.add((p.coord, first_cand.coord))
+        for last_cand in slots[-1].candidates:
+            for p in participants:
+                unique_coord_pairs.add((last_cand.coord, p.coord))
+
+        if self.router.enable_osrm and unique_coord_pairs:
+            uncached = [(c1, c2) for (c1, c2) in unique_coord_pairs if not self.router.get_cached_route(c1, c2)]
+            if uncached:
+                import asyncio
+                await asyncio.gather(*[self.router.get_route(c1, c2) for c1, c2 in uncached])
+
         evaluated_combinations: List[CombinationEvaluation] = []
         any_fallback_triggered = False
 
