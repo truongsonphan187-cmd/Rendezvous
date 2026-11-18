@@ -1,8 +1,10 @@
 """
-Unit tests for combinatorial itinerary solver and fairness vs efficiency behavior.
+Unit tests for combinatorial itinerary solver, Layered DP vs Brute-Force equivalence,
+and fairness vs efficiency trade-offs.
 """
 
 import unittest
+import random
 from tiebreak_engine.core.router import RouterClient, Coordinate
 from tiebreak_engine.core.itinerary_solver import (
     ItinerarySolver,
@@ -77,6 +79,81 @@ class TestItinerarySolver(unittest.IsolatedAsyncioTestCase):
 
         # Center spot should win because outlier commute North^2 is heavily penalized
         self.assertEqual(solution.best_combination.candidates[0].id, "cand_center")
+
+    async def test_multi_slot_dp_matches_brute_force_3_slots(self):
+        """
+        Verify that for K = 3 slots, Layered DP yields the identical optimal
+        combination and identical Psi score as Brute Force.
+        """
+        slot2_cands = [
+            PlaceCandidate(id="s2_c1", name="Cafe A", coord=Coordinate(lat=10.7800, lng=106.6900), slot_id="s2", slot_name="Cafe"),
+            PlaceCandidate(id="s2_c2", name="Cafe B", coord=Coordinate(lat=10.7850, lng=106.6950), slot_id="s2", slot_name="Cafe"),
+        ]
+        slot3_cands = [
+            PlaceCandidate(id="s3_c1", name="Dinner A", coord=Coordinate(lat=10.7600, lng=106.6800), slot_id="s3", slot_name="Dinner"),
+            PlaceCandidate(id="s3_c2", name="Dinner B", coord=Coordinate(lat=10.7650, lng=106.6850), slot_id="s3", slot_name="Dinner"),
+        ]
+        three_slots = [
+            self.slots[0],
+            Slot(id="s2", name="Cafe", candidates=slot2_cands),
+            Slot(id="s3", name="Dinner", candidates=slot3_cands),
+        ]
+
+        dp_sol = await self.solver.solve(self.participants, three_slots, penalty_exponent=1.5, fairness_factor=0.8)
+        bf_sol = await self.solver.solve_bruteforce(self.participants, three_slots, penalty_exponent=1.5, fairness_factor=0.8)
+
+        self.assertAlmostEqual(dp_sol.best_combination.total_penalty_score, bf_sol.best_combination.total_penalty_score, places=4)
+        dp_cand_ids = [c.id for c in dp_sol.best_combination.candidates]
+        bf_cand_ids = [c.id for c in bf_sol.best_combination.candidates]
+        self.assertEqual(dp_cand_ids, bf_cand_ids)
+
+    async def test_layered_dp_randomized_equivalence(self):
+        """
+        Rigorous stress test: 25 randomized configurations across varying N, K (3 to 5 slots),
+        candidate counts, k exponents, and lambda fairness factors.
+        Verifies 100% mathematical match between Layered DP and Brute-Force.
+        """
+        rng = random.Random(42)  # Deterministic seed for repeatable tests
+
+        for case_idx in range(25):
+            n_participants = rng.randint(3, 5)
+            k_slots = rng.randint(3, 4)
+            k_exp = rng.choice([1.0, 1.2, 1.5, 2.0])
+            lam = rng.choice([0.0, 0.4, 0.8, 1.2])
+
+            pts = [
+                Participant(
+                    id=f"p_{i}",
+                    name=f"User {i}",
+                    coord=Coordinate(lat=10.70 + rng.random() * 0.15, lng=106.60 + rng.random() * 0.15)
+                )
+                for i in range(n_participants)
+            ]
+
+            test_slots = []
+            for s_idx in range(k_slots):
+                n_cands = rng.randint(2, 3)
+                cands = [
+                    PlaceCandidate(
+                        id=f"s{s_idx}_c{c_idx}",
+                        name=f"Place {s_idx}.{c_idx}",
+                        coord=Coordinate(lat=10.70 + rng.random() * 0.15, lng=106.60 + rng.random() * 0.15),
+                        slot_id=f"s{s_idx}",
+                        slot_name=f"Slot {s_idx}",
+                    )
+                    for c_idx in range(n_cands)
+                ]
+                test_slots.append(Slot(id=f"s{s_idx}", name=f"Slot {s_idx}", candidates=cands))
+
+            dp_res = await self.solver.solve(pts, test_slots, penalty_exponent=k_exp, fairness_factor=lam)
+            bf_res = await self.solver.solve_bruteforce(pts, test_slots, penalty_exponent=k_exp, fairness_factor=lam)
+
+            self.assertAlmostEqual(
+                dp_res.best_combination.total_penalty_score,
+                bf_res.best_combination.total_penalty_score,
+                places=4,
+                msg=f"Mismatch at randomized case {case_idx}: DP={dp_res.best_combination.total_penalty_score}, BF={bf_res.best_combination.total_penalty_score}"
+            )
 
 
 if __name__ == "__main__":

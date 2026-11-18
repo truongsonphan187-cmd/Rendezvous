@@ -91,6 +91,13 @@ body {
   border-radius: 9999px;
   font-size: 0.8rem;
   font-weight: 600;
+  transition: all 0.25s ease;
+}
+
+.live-pill.live-pill-busy {
+  background-color: rgba(251, 191, 36, 0.15);
+  border-color: rgba(251, 191, 36, 0.45);
+  color: var(--accent-gold);
 }
 
 .live-dot {
@@ -100,6 +107,12 @@ body {
   background-color: var(--accent-green);
   box-shadow: 0 0 8px var(--accent-green);
   animation: pulse-glow 2s infinite ease-in-out;
+  transition: all 0.25s ease;
+}
+
+.live-pill.live-pill-busy .live-dot {
+  background-color: var(--accent-gold);
+  box-shadow: 0 0 8px var(--accent-gold);
 }
 
 @keyframes pulse-glow {

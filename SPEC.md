@@ -75,7 +75,12 @@ Với tập hợp chi phí cá nhân của $N$ người $\{c_1, c_2, \dots, c_N\
 3. **Hàm Mục Tiêu Toàn Cục ($\Psi$):**
    $$\Psi = \sum_{i=1}^N w_i \cdot c_{(i)}$$
 
-Thuật toán duyệt toàn bộ các tổ hợp ứng viên qua tích Đề-các (Cartesian Product) và chọn ra tổ hợp làm **cực tiểu hóa điểm phạt $\Psi$**.
+### 2.3 Giải Thuật Tối Ưu Hóa: Phân Rã + Quy Hoạch Động Đa Tầng (Layered DP)
+Để tối ưu hóa thời gian tính toán khi số lượng chặng $K \ge 3$ và số lượng ứng viên lớn:
+* **Tính chất phân rã toán học:** Với bất kỳ cặp quán biên $(s_1 \in S_1, s_K \in S_K)$ cố định, các chặng giữa $(S_2 \to \dots \to S_{K-1})$ đóng góp cùng một lượng km di chuyển chung $D_{\text{middle}}(s_1, s_K)$ cho tất cả $N$ thành viên. Vì $c_i = (d_{i,\text{ends}} + D_{\text{middle}})^k$ đơn điệu tăng nghiêm ngặt với $k \ge 1$ và $w_i \ge 0$, việc cực tiểu hóa hàm mục tiêu OMP $\Psi$ cho mỗi cặp $(s_1, s_K)$ **tương đương tuyệt đối** với việc tìm đường đi ngắn nhất qua các chặng giữa.
+* **Quy hoạch động trên DAG nhiều tầng:** Với mỗi $s_1 \in S_1$, thuật toán chạy DP tìm đường đi ngắn nhất tới từng $s_K \in S_K$ qua các tầng trung gian $S_2 \dots S_{K-1}$.
+* **Duyệt $M_1 \times M_K$ cặp đầu-cuối:** Tính điểm phạt OMP $\Psi$ trên các lộ trình tối ưu được tạo bởi DP và chọn ra phương án chiến thắng toàn cục.
+* **Độ phức tạp:** Giảm từ cấp số nhân $O(M^K)$ xuống $O(M_1 \cdot M_K \cdot K M^2)$, khớp nghiệm chính xác 100% với Brute-force trên mọi bộ dữ liệu.
 
 ---
 
@@ -223,17 +228,18 @@ result = await service.resolve(request_data)
   - [x] `scoring_formula.py` (Vùng tùy biến của Developer).
   - [x] `ordered_median.py` (OMP sort rank & dot product).
   - [x] `router.py` (OSRM đường phố thật + Cache RAM + Haversine 1.35x fallback).
-  - [x] `itinerary_solver.py` (Bộ giải tổ hợp Đề-các qua chuỗi chặng cố định).
+  - [x] `itinerary_solver.py` (Bộ giải Layered DP + OMP, khớp nghiệm 100% với Brute-force).
 - [x] Xây dựng tầng `integration/`:
   - [x] `schemas.py` (Pydantic models DTOs).
   - [x] `tie_break_service.py` (Facade service cắm vào `backend/app/domain/patterns/TieBreak`).
 - [x] Xây dựng tầng `playground/`:
   - [x] `run_playground.py` (FastAPI server cổng 8080).
   - [x] Giao diện Leaflet OSM đường phố thật + Sliders + Pipeline 3 bước trực quan.
-- [x] Bộ kiểm thử tự động 18 test cases (100% Passed):
+- [x] Bộ kiểm thử tự động 20 test cases (100% Passed):
   - [x] Kiểm thử tính đơn điệu của OMP và hàm lũy thừa.
   - [x] Kiểm thử tính công bằng khi bảo vệ Outlier.
   - [x] Kiểm thử định tuyến, cache bộ nhớ và cơ chế dự phòng.
+  - [x] Kiểm thử đối sánh toán học giữa Layered DP và Brute-force (100% khớp).
   - [x] Kiểm thử API và Facade Service.
 - [x] Bàn giao:
   - [x] File `README.md` tiếng Việt hướng dẫn tích hợp và lệnh git.

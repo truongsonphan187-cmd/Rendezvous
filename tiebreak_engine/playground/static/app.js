@@ -540,7 +540,21 @@ function resetToDefault() {
 // =============================================================================
 // 6. EXECUTE OPTIMIZATION (REAL-TIME ENGINE)
 // =============================================================================
+function setSolverStatus(busy) {
+  const pill = $("live-pill");
+  const text = $("live-text");
+  if (!pill || !text) return;
+  if (busy) {
+    pill.classList.add("live-pill-busy");
+    text.textContent = "Đang tính lộ trình";
+  } else {
+    pill.classList.remove("live-pill-busy");
+    text.textContent = "Lộ trình hoàn tất";
+  }
+}
+
 function scheduleOptimization(delayMs = 100) {
+  setSolverStatus(true);
   if (optDebounceTimer) clearTimeout(optDebounceTimer);
   optDebounceTimer = setTimeout(() => {
     executeOptimization();
@@ -548,7 +562,12 @@ function scheduleOptimization(delayMs = 100) {
 }
 
 async function executeOptimization() {
-  if (!currentData || !currentData.participants || currentData.participants.length < 2) return;
+  if (!currentData || !currentData.participants || currentData.participants.length < 2) {
+    setSolverStatus(false);
+    return;
+  }
+
+  setSolverStatus(true);
 
   const expSlider = $("exponent-slider");
   const fairSlider = $("fairness-slider");
@@ -578,6 +597,8 @@ async function executeOptimization() {
     displayResults(data);
   } catch (err) {
     console.error("Optimization error:", err);
+  } finally {
+    setSolverStatus(false);
   }
 }
 
