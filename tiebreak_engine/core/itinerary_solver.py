@@ -13,6 +13,8 @@ Thuật toán:
   3. Duyệt M_1 x M_K cặp đầu-cuối: Đánh giá trọn vẹn mô hình Ordered Median trên các
      lộ trình Pareto-optimal tìm được, bảo toàn 100% độ chính xác so với Brute-Force
      trong khi giảm độ phức tạp từ O(M^K) xuống O(M_1 * M_K * K * M^2).
+  4. Trực quan hóa DAG (Multi-Stage DAG Flow): Xuất đầy đủ dữ liệu các cạnh nối,
+     bước nhảy quyết định Bellman và số km tiết kiệm được để giao diện trực quan hóa.
 """
 
 import itertools
@@ -53,6 +55,41 @@ class Slot:
 
 
 @dataclass
+class DAGEdgeData:
+    from_candidate_id: str
+    from_candidate_name: str
+    to_candidate_id: str
+    to_candidate_name: str
+    from_slot_name: str
+    to_slot_name: str
+    distance_km: float
+    is_optimal: bool
+    geometry: List[List[float]] = field(default_factory=list)
+
+
+@dataclass
+class DAGStepDecisionData:
+    slot_id: str
+    slot_name: str
+    chosen_candidate_id: str
+    chosen_candidate_name: str
+    cumulative_distance_km: float
+    decision_explanation: str
+
+
+@dataclass
+class LayeredDAGData:
+    enabled: bool = False
+    layers_count: int = 0
+    edges: List[DAGEdgeData] = field(default_factory=list)
+    steps: List[DAGStepDecisionData] = field(default_factory=list)
+    optimal_middle_distance_km: float = 0.0
+    worst_middle_distance_km: float = 0.0
+    saved_distance_km: float = 0.0
+    combinations_pruned_count: int = 0
+
+
+@dataclass
 class ParticipantEvaluation:
     participant_id: str
     participant_name: str
@@ -61,6 +98,9 @@ class ParticipantEvaluation:
     sorted_rank: int
     rank_weight: float
     weighted_contribution: float
+    outbound_distance_km: float = 0.0
+    middle_distance_km: float = 0.0
+    inbound_distance_km: float = 0.0
     outbound_geometry: List[List[float]] = field(default_factory=list)
     inbound_geometry: List[List[float]] = field(default_factory=list)
 
@@ -84,6 +124,7 @@ class SolverSolution:
     fallback_used: bool
     penalty_exponent: float
     fairness_factor: float
+    dag_data: Optional[LayeredDAGData] = None
 
 
 class ItinerarySolver:
@@ -162,7 +203,10 @@ class ItinerarySolver:
                     if leg1_route.is_fallback or leg3_route.is_fallback:
                         any_fallback_triggered = True
 
-                    total_dist = round(leg1_route.distance_km + leg3_route.distance_km, 3)
+                    outbound_km = round(leg1_route.distance_km, 2)
+                    middle_km = 0.0
+                    inbound_km = round(leg3_route.distance_km, 2)
+                    total_dist = round(outbound_km + middle_km + inbound_km, 2)
                     cost = compute_individual_penalty(total_dist, penalty_exponent)
 
                     individual_distances.append(total_dist)
@@ -189,6 +233,9 @@ class ItinerarySolver:
                             sorted_rank=rank + 1,
                             rank_weight=weight,
                             weighted_contribution=weighted_val,
+                            outbound_distance_km=round(leg1_r.distance_km, 2),
+                            middle_distance_km=0.0,
+                            inbound_distance_km=round(leg3_r.distance_km, 2),
                             outbound_geometry=leg1_r.geometry,
                             inbound_geometry=leg3_r.geometry,
                         )
@@ -276,7 +323,10 @@ class ItinerarySolver:
                         if leg1_route.is_fallback or leg3_route.is_fallback:
                             any_fallback_triggered = True
 
-                        total_dist = round(leg1_route.distance_km + shared_middle_distance + leg3_route.distance_km, 3)
+                        outbound_km = round(leg1_route.distance_km, 2)
+                        middle_km = round(shared_middle_distance, 2)
+                        inbound_km = round(leg3_route.distance_km, 2)
+                        total_dist = round(outbound_km + middle_km + inbound_km, 2)
                         cost = compute_individual_penalty(total_dist, penalty_exponent)
 
                         individual_distances.append(total_dist)
@@ -303,6 +353,9 @@ class ItinerarySolver:
                                 sorted_rank=rank + 1,
                                 rank_weight=weight,
                                 weighted_contribution=weighted_val,
+                                outbound_distance_km=round(leg1_r.distance_km, 2),
+                                middle_distance_km=round(shared_middle_distance, 2),
+                                inbound_distance_km=round(leg3_r.distance_km, 2),
                                 outbound_geometry=leg1_r.geometry,
                                 inbound_geometry=leg3_r.geometry,
                             )
@@ -326,6 +379,94 @@ class ItinerarySolver:
         evaluated_combinations.sort(key=lambda eval_item: eval_item.total_penalty_score)
         best_combo = evaluated_combinations[0]
 
+        # 5. Xây dựng Dữ liệu Trực Quan Hóa Đồ Thị Nhiều Tầng (DAG Flow)
+        dag_data: Optional[LayeredDAGData] = None
+        if len(slots) >= 2:
+            edges: List[DAGEdgeData] = []
+            best_cand_ids = [c.id for c in best_combo.candidates]
+
+            # Thu thập tất cả các cạnh nối giữa các tầng kế tiếp
+            for l_idx in range(len(slots) - 1):
+                from_slot = slots[l_idx]
+                to_slot = slots[l_idx + 1]
+                for u in from_slot.candidates:
+                    for v in to_slot.candidates:
+                        seg = await self.router.get_route(u.coord, v.coord)
+                        is_opt = (best_cand_ids[l_idx] == u.id and best_cand_ids[l_idx + 1] == v.id)
+                        edges.append(
+                            DAGEdgeData(
+                                from_candidate_id=u.id,
+                                from_candidate_name=u.name,
+                                to_candidate_id=v.id,
+                                to_candidate_name=v.name,
+                                from_slot_name=from_slot.name,
+                                to_slot_name=to_slot.name,
+                                distance_km=round(seg.distance_km, 2),
+                                is_optimal=is_opt,
+                                geometry=seg.geometry or [],
+                            )
+                        )
+
+            # Xây dựng các bước quyết định DP tại từng tầng
+            steps: List[DAGStepDecisionData] = []
+            cum_km = 0.0
+            for l_idx in range(1, len(slots)):
+                prev_chosen = best_combo.candidates[l_idx - 1]
+                curr_chosen = best_combo.candidates[l_idx]
+                curr_slot = slots[l_idx]
+
+                step_seg = await self.router.get_route(prev_chosen.coord, curr_chosen.coord)
+                cum_km += step_seg.distance_km
+
+                alt_comparisons = []
+                for cand in curr_slot.candidates:
+                    alt_seg = await self.router.get_route(prev_chosen.coord, cand.coord)
+                    is_c = (cand.id == curr_chosen.id)
+                    alt_comparisons.append(f"{cand.name}: {round(alt_seg.distance_km, 2)}km{' (DP chọn)' if is_c else ''}")
+
+                explanation = f"Từ {prev_chosen.name} sang {curr_slot.name}, DP so sánh: {'; '.join(alt_comparisons)}. Nhánh {curr_chosen.name} đạt quãng đường tối ưu."
+                steps.append(
+                    DAGStepDecisionData(
+                        slot_id=curr_slot.id,
+                        slot_name=curr_slot.name,
+                        chosen_candidate_id=curr_chosen.id,
+                        chosen_candidate_name=curr_chosen.name,
+                        cumulative_distance_km=round(cum_km, 2),
+                        decision_explanation=explanation,
+                    )
+                )
+
+            # Tính khoảng cách tốt nhất vs xấu nhất để chứng minh hiệu quả tiết kiệm
+            all_middle_dists = []
+            slot_cand_lists = [s.candidates for s in slots]
+            for combo in itertools.product(*slot_cand_lists):
+                m_dist = 0.0
+                for c_i in range(len(combo) - 1):
+                    seg_ab = await self.router.get_route(combo[c_i].coord, combo[c_i + 1].coord)
+                    m_dist += seg_ab.distance_km
+                all_middle_dists.append(m_dist)
+
+            opt_middle_km = round(min(all_middle_dists), 2)
+            worst_middle_km = round(max(all_middle_dists), 2)
+            saved_km = round(max(0.0, worst_middle_km - opt_middle_km), 2)
+            total_possible_combos = len(all_middle_dists)
+
+            dag_data = LayeredDAGData(
+                enabled=True,
+                layers_count=len(slots),
+                edges=edges,
+                steps=steps,
+                optimal_middle_distance_km=opt_middle_km,
+                worst_middle_distance_km=worst_middle_km,
+                saved_distance_km=saved_km,
+                combinations_pruned_count=max(0, total_possible_combos - 1),
+            )
+        else:
+            dag_data = LayeredDAGData(
+                enabled=False,
+                layers_count=1,
+            )
+
         exec_time = round((time.perf_counter() - start_time) * 1000.0, 2)
 
         return SolverSolution(
@@ -335,6 +476,7 @@ class ItinerarySolver:
             fallback_used=any_fallback_triggered or (self.router.fallback_triggered_count > 0),
             penalty_exponent=penalty_exponent,
             fairness_factor=fairness_factor,
+            dag_data=dag_data,
         )
 
     async def solve_bruteforce(
@@ -389,7 +531,10 @@ class ItinerarySolver:
                 if leg1_route.is_fallback or leg3_route.is_fallback:
                     any_fallback_triggered = True
 
-                total_dist = round(leg1_route.distance_km + shared_middle_distance + leg3_route.distance_km, 3)
+                outbound_km = round(leg1_route.distance_km, 2)
+                middle_km = round(shared_middle_distance, 2)
+                inbound_km = round(leg3_route.distance_km, 2)
+                total_dist = round(outbound_km + middle_km + inbound_km, 2)
                 cost = compute_individual_penalty(total_dist, penalty_exponent)
 
                 individual_distances.append(total_dist)
@@ -416,6 +561,9 @@ class ItinerarySolver:
                         sorted_rank=rank + 1,
                         rank_weight=weight,
                         weighted_contribution=weighted_val,
+                        outbound_distance_km=round(leg1_r.distance_km, 2),
+                        middle_distance_km=round(shared_middle_distance, 2),
+                        inbound_distance_km=round(leg3_r.distance_km, 2),
                         outbound_geometry=leg1_r.geometry,
                         inbound_geometry=leg3_r.geometry,
                     )

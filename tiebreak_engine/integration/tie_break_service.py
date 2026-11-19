@@ -22,6 +22,9 @@ from tiebreak_engine.integration.schemas import (
     CandidatePlace,
     ParticipantBreakdown,
     CombinationSummary,
+    DAGEdge,
+    DAGStepDecision,
+    LayeredDAGVisualization,
 )
 
 
@@ -99,6 +102,9 @@ class TieBreakService:
                 rank=pe.sorted_rank,
                 rank_weight=pe.rank_weight,
                 weighted_score=pe.weighted_contribution,
+                outbound_distance_km=pe.outbound_distance_km,
+                middle_distance_km=pe.middle_distance_km,
+                inbound_distance_km=pe.inbound_distance_km,
                 outbound_geometry=pe.outbound_geometry,
                 inbound_geometry=pe.inbound_geometry,
             )
@@ -126,6 +132,48 @@ class TieBreakService:
             for combo in solution.all_evaluated_combinations
         ]
 
+        # 5. Đóng gói dữ liệu trực quan hóa đồ thị nhiều tầng (DAG Flow)
+        dag_viz: Optional[LayeredDAGVisualization] = None
+        if solution.dag_data and solution.dag_data.enabled:
+            dag_viz = LayeredDAGVisualization(
+                enabled=True,
+                layers_count=solution.dag_data.layers_count,
+                edges=[
+                    DAGEdge(
+                        from_candidate_id=e.from_candidate_id,
+                        from_candidate_name=e.from_candidate_name,
+                        to_candidate_id=e.to_candidate_id,
+                        to_candidate_name=e.to_candidate_name,
+                        from_slot_name=e.from_slot_name,
+                        to_slot_name=e.to_slot_name,
+                        distance_km=e.distance_km,
+                        is_optimal=e.is_optimal,
+                        geometry=e.geometry,
+                    )
+                    for e in solution.dag_data.edges
+                ],
+                steps=[
+                    DAGStepDecision(
+                        slot_id=s.slot_id,
+                        slot_name=s.slot_name,
+                        chosen_candidate_id=s.chosen_candidate_id,
+                        chosen_candidate_name=s.chosen_candidate_name,
+                        cumulative_distance_km=s.cumulative_distance_km,
+                        decision_explanation=s.decision_explanation,
+                    )
+                    for s in solution.dag_data.steps
+                ],
+                optimal_middle_distance_km=solution.dag_data.optimal_middle_distance_km,
+                worst_middle_distance_km=solution.dag_data.worst_middle_distance_km,
+                saved_distance_km=solution.dag_data.saved_distance_km,
+                combinations_pruned_count=solution.dag_data.combinations_pruned_count,
+            )
+        elif solution.dag_data:
+            dag_viz = LayeredDAGVisualization(
+                enabled=False,
+                layers_count=1,
+            )
+
         return TieBreakResponse(
             success=True,
             selected_combination=selected_places,
@@ -139,6 +187,7 @@ class TieBreakService:
                 "penalty_exponent": solution.penalty_exponent,
                 "fairness_factor": solution.fairness_factor,
             },
+            dag_visualization=dag_viz,
             message=(
                 "Phân giải hòa vote thành công qua mạng lưới đường phố OSRM thực tế."
                 if not solution.fallback_used

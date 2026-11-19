@@ -60,6 +60,9 @@ class ParticipantBreakdown(BaseModel):
     rank: int
     rank_weight: float
     weighted_score: float
+    outbound_distance_km: float = Field(0.0, description="Khoảng cách từ nhà đến quán chặng đầu tiên")
+    middle_distance_km: float = Field(0.0, description="Khoảng cách chặng giữa đi chung cả nhóm do DP tối ưu")
+    inbound_distance_km: float = Field(0.0, description="Khoảng cách từ quán chặng cuối cùng về lại nhà")
     outbound_geometry: List[List[float]] = Field(default_factory=list, description="Tọa độ đường đi thực tế GeoJSON")
     inbound_geometry: List[List[float]] = Field(default_factory=list, description="Tọa độ đường về thực tế GeoJSON")
 
@@ -72,6 +75,38 @@ class CombinationSummary(BaseModel):
     min_distance_km: float
 
 
+class DAGEdge(BaseModel):
+    from_candidate_id: str
+    from_candidate_name: str
+    to_candidate_id: str
+    to_candidate_name: str
+    from_slot_name: str
+    to_slot_name: str
+    distance_km: float
+    is_optimal: bool
+    geometry: List[List[float]] = Field(default_factory=list)
+
+
+class DAGStepDecision(BaseModel):
+    slot_id: str
+    slot_name: str
+    chosen_candidate_id: str
+    chosen_candidate_name: str
+    cumulative_distance_km: float
+    decision_explanation: str
+
+
+class LayeredDAGVisualization(BaseModel):
+    enabled: bool = False
+    layers_count: int = 0
+    edges: List[DAGEdge] = Field(default_factory=list)
+    steps: List[DAGStepDecision] = Field(default_factory=list)
+    optimal_middle_distance_km: float = 0.0
+    worst_middle_distance_km: float = 0.0
+    saved_distance_km: float = 0.0
+    combinations_pruned_count: int = 0
+
+
 class TieBreakResponse(BaseModel):
     success: bool = True
     selected_combination: List[CandidatePlace]
@@ -82,4 +117,5 @@ class TieBreakResponse(BaseModel):
     execution_time_ms: float
     fallback_used: bool
     applied_parameters: Dict[str, float]
+    dag_visualization: Optional[LayeredDAGVisualization] = None
     message: str = "Phân giải hòa vote thành công."

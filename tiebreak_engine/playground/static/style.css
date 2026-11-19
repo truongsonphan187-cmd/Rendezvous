@@ -917,8 +917,498 @@ input:checked + .toggle-slider:before {
   color: #ffffff;
 }
 
+/* TABLE SUBTITLES */
+.table-header-group {
+  margin-bottom: 1.15rem;
+}
+
+.table-header-group h4 {
+  margin-bottom: 0.2rem;
+}
+
+.table-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* 3-PART DISTANCE BREAKDOWN IN PARTICIPANT TABLE */
+.dist-breakdown {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+}
+
+.dist-pill {
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-xs);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.dist-out {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.dist-mid {
+  background: rgba(251, 191, 36, 0.14);
+  color: var(--accent-gold);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.15);
+}
+
+.dist-in {
+  background: rgba(192, 132, 252, 0.12);
+  color: #c084fc;
+  border: 1px solid rgba(192, 132, 252, 0.3);
+}
+
+.dist-operator {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0 0.1rem;
+}
+
+.dist-sum {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding-left: 0.15rem;
+}
+
+.formula-sub {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  margin-left: 0.3rem;
+  font-family: var(--font-mono);
+}
+
 /* =============================================================================
-   7. RESPONSIVE BREAKPOINTS
+   7. LAYERED DP ON DAG VISUALIZATION SECTION
+   ============================================================================= */
+.dag-container {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  transition: all 0.25s ease;
+}
+
+.dag-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding-bottom: 1rem;
+}
+
+.dag-title-group h4 {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.dag-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.dag-summary-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.dag-summary-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dag-summary-badge.badge-opt {
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--accent-gold);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.15);
+}
+
+.dag-summary-badge.badge-saved {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+.dag-summary-badge.badge-pruned {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+}
+
+/* 1-Slot Informative Card */
+.dag-single-slot-notice {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-lg);
+  padding: 1.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.65rem;
+}
+
+.dag-single-slot-icon {
+  font-size: 2rem;
+  filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.4));
+}
+
+.dag-single-slot-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.dag-single-slot-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  max-width: 620px;
+  line-height: 1.5;
+}
+
+.dag-single-slot-hint {
+  font-size: 0.78rem;
+  color: var(--accent-gold);
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius-full);
+  margin-top: 0.4rem;
+}
+
+/* Multi-Slot Flow Graph */
+.dag-stages-flow {
+  display: flex;
+  align-items: stretch;
+  gap: 0.85rem;
+  overflow-x: auto;
+  padding: 0.5rem 0.25rem 1rem 0.25rem;
+}
+
+.dag-stage-col {
+  flex: 1;
+  min-width: 220px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dag-stage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.55rem;
+}
+
+.stage-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  background: rgba(251, 191, 36, 0.12);
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.stage-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.dag-nodes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.dag-node-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  position: relative;
+}
+
+.dag-node-card:hover {
+  border-color: var(--accent-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), 0 0 12px rgba(251, 191, 36, 0.2);
+}
+
+.dag-node-card.is-winner {
+  border-color: rgba(251, 191, 36, 0.65);
+  background: rgba(251, 191, 36, 0.07);
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.18);
+}
+
+.dag-node-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dag-node-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.dag-node-pin {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.dag-node-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dag-node-badge {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.dag-node-badge.badge-winner {
+  background: var(--accent-gold);
+  color: #050505;
+  font-weight: 800;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+
+.dag-node-badge.badge-alt {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+/* Bridges between Stage Columns */
+.dag-transition-bridge {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.55rem;
+  min-width: 170px;
+  padding: 0.5rem 0;
+}
+
+.dag-edge-pill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dag-edge-pill:hover {
+  border-color: var(--accent-gold);
+  background: rgba(251, 191, 36, 0.12);
+  transform: scale(1.02);
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.25);
+}
+
+.dag-edge-pill.is-optimal {
+  border-color: rgba(251, 191, 36, 0.75);
+  background: rgba(251, 191, 36, 0.14);
+  color: var(--accent-gold);
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.2);
+  font-weight: 600;
+}
+
+.dag-edge-pill.is-pruned {
+  border-style: dashed;
+  opacity: 0.65;
+  color: var(--text-muted);
+}
+
+.edge-pill-route {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7rem;
+}
+
+.edge-pill-dist {
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.edge-status-tag {
+  font-size: 0.62rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.edge-status-tag.opt {
+  background: var(--accent-gold);
+  color: #050505;
+}
+
+.edge-status-tag.pruned {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+}
+
+/* Step-by-Step DP Bellman Decision Explanations */
+.dag-decision-stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: 1.15rem;
+}
+
+.dag-stepper-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.dag-step-card {
+  background: var(--bg-tertiary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
+}
+
+.dag-step-card:hover {
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+.dag-step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dag-step-left {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.dag-step-idx {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--accent-gold);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.dag-step-target {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.dag-step-km {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #34d399;
+}
+
+.dag-step-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.bellman-formula-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent-gold);
+  background: rgba(251, 191, 36, 0.08);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 0.2rem;
+}
+
+/* =============================================================================
+   8. RESPONSIVE BREAKPOINTS
    ============================================================================= */
 @media (max-width: 1024px) {
   .main-layout {
@@ -934,5 +1424,11 @@ input:checked + .toggle-slider:before {
   }
   .metric-cards-grid {
     grid-template-columns: 1fr;
+  }
+  .dag-stages-flow {
+    flex-direction: column;
+  }
+  .dag-transition-bridge {
+    min-width: auto;
   }
 }

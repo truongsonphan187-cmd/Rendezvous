@@ -5,6 +5,8 @@
 let map = null;
 let markersGroup = null;
 let routesGroup = null;
+let highlightGroup = null;
+let currentMapMarkers = {};
 let isPureOmpMode = true; // true: locks k=1.0 (Standard OMP), false: unlocks k > 1.0
 let optDebounceTimer = null;
 let lastSelectedCandidateIds = [];
@@ -74,10 +76,35 @@ function initMap() {
 
   routesGroup = L.layerGroup().addTo(map);
   markersGroup = L.layerGroup().addTo(map);
+  highlightGroup = L.layerGroup().addTo(map);
 
   setTimeout(() => {
     if (map) map.invalidateSize();
   }, 250);
+}
+
+function highlightEdgeOnMap(geometry) {
+  if (!highlightGroup || !geometry || geometry.length === 0) return;
+  highlightGroup.clearLayers();
+  const leafletCoords = geometry.map((pt) => [pt[1], pt[0]]);
+  // Outer bright border
+  L.polyline(leafletCoords, {
+    color: "#ffffff",
+    weight: 9,
+    opacity: 0.95,
+  }).addTo(highlightGroup);
+  // Inner amber neon core
+  L.polyline(leafletCoords, {
+    color: "#fbbf24",
+    weight: 5,
+    opacity: 1.0,
+  }).addTo(highlightGroup);
+}
+
+function clearHighlightOnMap() {
+  if (highlightGroup) {
+    highlightGroup.clearLayers();
+  }
 }
 
 function createCustomIcon(color, label, isWinner = false) {
@@ -174,6 +201,7 @@ function renderMapMarkers() {
     });
   });
 
+  currentMapMarkers = createdMarkers;
   return createdMarkers;
 }
 
@@ -641,23 +669,49 @@ function displayResults(data) {
   drawRealRoadRoutes(data);
   renderActiveSlotCandidates(); // update winner badges in active slot tab
 
+  // Render Layered DP on DAG Flow Visualization
+  renderDAGVisualization(data.dag_visualization, data.selected_combination);
+
+  // Active exponent k for mathematical formula notation
+  const expSlider = $("exponent-slider");
+  const currentK = expSlider ? parseFloat(expSlider.value) : 1.0;
+
   // Render Table 1: Participants sorted by Rank: c_(1) <= c_(2) <= ... <= c_(N)
   const sortedByRank = [...data.participant_breakdowns].sort((a, b) => a.rank - b.rank);
   const pTable = $("participant-table-body");
   if (pTable) {
     pTable.innerHTML = sortedByRank
-      .map(
-        (p) => `
-        <tr>
-          <td><strong>#${p.rank}</strong></td>
-          <td>${p.name}</td>
-          <td><code>${p.total_distance_km.toFixed(2)} km</code></td>
-          <td><code>${p.penalized_cost.toFixed(2)}</code></td>
-          <td><span class="mini-tag">${p.rank_weight.toFixed(3)}</span></td>
-          <td><strong>${p.weighted_score.toFixed(2)}</strong></td>
-        </tr>
-      `
-      )
+      .map((p) => {
+        const outKm = (p.outbound_distance_km !== undefined ? p.outbound_distance_km : (p.total_distance_km / 2)).toFixed(2);
+        const midKm = (p.middle_distance_km !== undefined ? p.middle_distance_km : 0.0).toFixed(2);
+        const inKm = (p.inbound_distance_km !== undefined ? p.inbound_distance_km : (p.total_distance_km / 2)).toFixed(2);
+        const totalKm = p.total_distance_km.toFixed(2);
+
+        const costDisplay = currentK > 1.0
+          ? `<code>${p.penalized_cost.toFixed(2)}</code> <span class="formula-sub">(${totalKm}<sup>${currentK.toFixed(1)}</sup>)</span>`
+          : `<code>${p.penalized_cost.toFixed(2)}</code>`;
+
+        return `
+          <tr>
+            <td><strong>#${p.rank}</strong></td>
+            <td><strong>${p.name}</strong></td>
+            <td>
+              <div class="dist-breakdown">
+                <span class="dist-pill dist-out" title="Đi riêng: Nhà ➔ Điểm hẹn đầu (${outKm} km)">🏠 Đi: ${outKm} km</span>
+                <span class="dist-operator">+</span>
+                <span class="dist-pill dist-mid" title="Đi chung: Cả nhóm cùng di chuyển qua các chặng do DP tối ưu (${midKm} km)">⚡ Chung: ${midKm} km</span>
+                <span class="dist-operator">+</span>
+                <span class="dist-pill dist-in" title="Về riêng: Điểm hẹn cuối ➔ Nhà (${inKm} km)">🏠 Về: ${inKm} km</span>
+                <span class="dist-operator">=</span>
+                <span class="dist-sum">${totalKm} km</span>
+              </div>
+            </td>
+            <td>${costDisplay}</td>
+            <td><span class="mini-tag">${p.rank_weight.toFixed(3)}</span></td>
+            <td><strong>${p.weighted_score.toFixed(2)}</strong></td>
+          </tr>
+        `;
+      })
       .join("");
   }
 
@@ -681,6 +735,194 @@ function displayResults(data) {
       })
       .join("");
   }
+}
+
+// =============================================================================
+// LAYERED DP ON MULTI-STAGE DAG VISUALIZATION
+// =============================================================================
+function renderDAGVisualization(dagData, selectedCombo) {
+  const container = $("dag-board");
+  const summaryPill = $("dag-summary-pill");
+  if (!container) return;
+
+  // Case 1: Single Slot (K = 1) -> No middle legs exist yet
+  if (!dagData || !dagData.enabled || dagData.layers_count < 2) {
+    if (summaryPill) {
+      summaryPill.innerHTML = `
+        <span class="dag-summary-badge" style="background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.1);">
+          📍 Lịch trình 1 điểm hẹn (K = 1)
+        </span>
+      `;
+    }
+    container.innerHTML = `
+      <div class="dag-single-slot-notice">
+        <div class="dag-single-slot-icon">ℹ️</div>
+        <div class="dag-single-slot-title">Chuyến đi 1 chặng: Di chuyển trực tiếp không qua chặng giữa</div>
+        <p class="dag-single-slot-desc">
+          Các thành viên chỉ gặp nhau tại một điểm hẹn duy nhất (<strong>D1</strong>). Toàn bộ lộ trình gồm 2 chặng cá nhân: 
+          <code>Nhà ➔ D1</code> và <code>D1 ➔ Nhà</code>. Chưa phát sinh chặng di chuyển trung gian giữa các quán, do đó đồ thị đa tầng (Layered DP) chưa kích hoạt.
+        </p>
+        <div class="dag-single-slot-hint">
+          💡 <strong>Trải nghiệm thuật toán:</strong> Bấm <strong>"➕ Thêm chặng"</strong> ở thanh bên trái (tạo lịch trình 2–5 chặng như Ăn trưa ➔ Cafe ➔ Bida) để kích hoạt đồ thị Quy hoạch động trực quan!
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Case 2: Multi-Stage DAG (K >= 2)
+  if (summaryPill) {
+    summaryPill.innerHTML = `
+      <span class="dag-summary-badge badge-opt" title="Tổng quãng đường các chặng giữa do thuật toán DP lựa chọn">
+        🏆 Chặng giữa DP chọn: <strong>${dagData.optimal_middle_distance_km.toFixed(2)} km</strong>
+      </span>
+      <span class="dag-summary-badge badge-saved" title="Số km tiết kiệm được so với phương án chặng giữa xấu nhất">
+        ✨ Tiết kiệm: <strong>${dagData.saved_distance_km.toFixed(2)} km</strong>
+      </span>
+      <span class="dag-summary-badge badge-pruned" title="Số lượng nhánh tổ hợp con lãng phí bị cắt tỉa sớm">
+        ✂️ Cắt tỉa: <strong>${dagData.combinations_pruned_count} nhánh lãng phí</strong>
+      </span>
+    `;
+  }
+
+  const selectedCandIds = new Set((selectedCombo || []).map((c) => c.id));
+
+  // Build Multi-stage Flow
+  let flowHtml = '<div class="dag-stages-flow">';
+
+  currentData.slots.forEach((slot, sIdx) => {
+    const slotTag = `D${sIdx + 1}`;
+    flowHtml += `
+      <div class="dag-stage-col" data-slot-idx="${sIdx}">
+        <div class="dag-stage-header">
+          <span class="stage-tag">${slotTag}</span>
+          <span class="stage-name">${slot.slot_name}</span>
+        </div>
+        <div class="dag-nodes-list">
+    `;
+
+    slot.candidates.forEach((cand) => {
+      const isWinner = selectedCandIds.has(cand.id);
+      flowHtml += `
+        <div class="dag-node-card ${isWinner ? "is-winner" : ""}" data-cand-id="${cand.id}">
+          <div class="dag-node-top">
+            <div class="dag-node-left">
+              <span class="dag-node-pin" style="background-color: ${isWinner ? "#fbbf24" : "rgba(255, 255, 255, 0.15)"}; color: ${isWinner ? "#050505" : "#ffffff"};">
+                ${slotTag}
+              </span>
+              <span class="dag-node-name" title="${cand.name}">${cand.name}</span>
+            </div>
+            <span class="dag-node-badge ${isWinner ? "badge-winner" : "badge-alt"}">
+              ${isWinner ? "🏆 ĐÃ CHỌN" : "⚪ Nhánh phụ"}
+            </span>
+          </div>
+        </div>
+      `;
+    });
+
+    flowHtml += `
+        </div>
+      </div>
+    `;
+
+    // Connector Bridge between slot sIdx and sIdx + 1
+    if (sIdx < currentData.slots.length - 1) {
+      const nextSlot = currentData.slots[sIdx + 1];
+      const connectingEdges = (dagData.edges || []).filter(
+        (e) => e.from_slot_name === slot.slot_name && e.to_slot_name === nextSlot.slot_name
+      );
+
+      flowHtml += `<div class="dag-transition-bridge">`;
+
+      connectingEdges.forEach((edge, edgeIdx) => {
+        const edgeOptimal = edge.is_optimal;
+        flowHtml += `
+          <div class="dag-edge-pill ${edgeOptimal ? "is-optimal" : "is-pruned"}"
+               data-edge-idx="${edgeIdx}"
+               data-from-id="${edge.from_candidate_id}"
+               data-to-id="${edge.to_candidate_id}"
+               title="Rê chuột để soi tuyến đường này trên bản đồ">
+            <div class="edge-pill-route">
+              <span>${edge.from_candidate_name} ➔ ${edge.to_candidate_name}</span>
+            </div>
+            <div class="edge-pill-dist">
+              <span>${edge.distance_km.toFixed(2)} km</span>
+              <span class="edge-status-tag ${edgeOptimal ? "opt" : "pruned"}">
+                ${edgeOptimal ? "DP CHỌN 🏆" : "CẮT TỈA ✂️"}
+              </span>
+            </div>
+          </div>
+        `;
+      });
+
+      flowHtml += `</div>`;
+    }
+  });
+
+  flowHtml += '</div>'; // End dag-stages-flow
+
+  // Decision Stepper
+  let stepsHtml = `
+    <div class="dag-decision-stepper">
+      <div class="dag-stepper-title">
+        <span>📌</span> Tiến trình Ra Quyết Định theo Nguyên Lý Tối Ưu Bellman:
+      </div>
+  `;
+
+  (dagData.steps || []).forEach((step, sIdx) => {
+    stepsHtml += `
+      <div class="dag-step-card">
+        <div class="dag-step-header">
+          <div class="dag-step-left">
+            <span class="dag-step-idx">Bước ${sIdx + 1}</span>
+            <span class="dag-step-target">Chuyển sang ${step.slot_name}: Chọn ${step.chosen_candidate_name}</span>
+          </div>
+          <span class="dag-step-km">Lũy kế chặng giữa: ${step.cumulative_distance_km.toFixed(2)} km</span>
+        </div>
+        <p class="dag-step-desc">${step.decision_explanation}</p>
+        <div>
+          <span class="bellman-formula-tag">
+            Nguyên lý Bellman: C*(s) = min { C*(p) + cost(p, s) }
+          </span>
+        </div>
+      </div>
+    `;
+  });
+
+  stepsHtml += '</div>'; // End dag-decision-stepper
+
+  container.innerHTML = flowHtml + stepsHtml;
+
+  // Interactivity 1: Hover edge pill -> Highlight street route on Leaflet Map
+  const edgePills = container.querySelectorAll(".dag-edge-pill");
+  edgePills.forEach((pill) => {
+    const fromId = pill.getAttribute("data-from-id");
+    const toId = pill.getAttribute("data-to-id");
+    const matchingEdge = (dagData.edges || []).find(
+      (e) => e.from_candidate_id === fromId && e.to_candidate_id === toId
+    );
+
+    pill.addEventListener("mouseenter", () => {
+      if (matchingEdge && matchingEdge.geometry && matchingEdge.geometry.length > 0) {
+        highlightEdgeOnMap(matchingEdge.geometry);
+      }
+    });
+
+    pill.addEventListener("mouseleave", () => {
+      clearHighlightOnMap();
+    });
+  });
+
+  // Interactivity 2: Hover candidate card -> Open marker popup on Leaflet Map
+  const nodeCards = container.querySelectorAll(".dag-node-card");
+  nodeCards.forEach((card) => {
+    const candId = card.getAttribute("data-cand-id");
+    card.addEventListener("mouseenter", () => {
+      if (currentMapMarkers && currentMapMarkers[candId]) {
+        currentMapMarkers[candId].openPopup();
+      }
+    });
+  });
 }
 
 // =============================================================================
