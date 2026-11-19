@@ -82,8 +82,10 @@ function initMap() {
 
 function createCustomIcon(color, label, isWinner = false) {
   const size = isWinner ? 36 : 28;
-  const border = isWinner ? "3px solid #fbbf24" : "2px solid #ffffff";
-  const shadow = isWinner ? "0 0 16px rgba(251, 191, 36, 1)" : "0 2px 6px rgba(0,0,0,0.45)";
+  const border = isWinner ? "2.5px solid #fbbf24" : "2px solid rgba(255, 255, 255, 0.9)";
+  const shadow = isWinner
+    ? "0 0 20px rgba(251, 191, 36, 0.9), 0 2px 10px rgba(0, 0, 0, 0.8)"
+    : "0 2px 8px rgba(0, 0, 0, 0.6)";
 
   return L.divIcon({
     className: "custom-leaflet-pin",
@@ -98,10 +100,12 @@ function createCustomIcon(color, label, isWinner = false) {
         display: flex;
         align-items: center;
         justify-content: center;
-        color: ${isWinner ? "#0f172a" : "#ffffff"};
+        color: ${isWinner ? "#050505" : "#ffffff"};
+        font-family: 'DM Sans', sans-serif;
         font-weight: 800;
         font-size: ${isWinner ? "13px" : "11px"};
         cursor: grab;
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       ">${label}</div>
     `,
     iconSize: [size, size],
