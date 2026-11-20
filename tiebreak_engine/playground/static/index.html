@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  <link rel="stylesheet" href="/static/style.css?v=3.3">
+  <link rel="stylesheet" href="/static/style.css?v=3.5">
 </head>
 <body>
   <div class="app-container">
@@ -163,6 +163,29 @@
             </div>
           </div>
 
+          <!-- PARTICIPANT TABLE -->
+          <div class="table-card">
+            <div class="table-header-group">
+              <h4>👥 Bảng Chi Tiết Từng Thành Viên (Xếp hạng theo chi phí tăng dần c<sub>(1)</sub> &le; c<sub>(n)</sub>)</h4>
+              <p class="table-subtitle">Khoảng cách thật d<sub>i</sub> = Đi riêng (Nhà ➔ D1) + ⚡ Đi chung (D1 ➔ Dk do DP tối ưu) + Về riêng (Dk ➔ Nhà)</p>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Thứ hạng</th>
+                    <th>Thành viên</th>
+                    <th>Chi tiết 3 chặng quãng đường (d<sub>i</sub>)</th>
+                    <th>Chi phí cá nhân (c<sub>i</sub>)</th>
+                    <th>Trọng số OMP (w<sub>i</sub>)</th>
+                    <th>Điểm đóng góp (w<sub>i</sub> &times; c<sub>i</sub>)</th>
+                  </tr>
+                </thead>
+                <tbody id="participant-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+
           <!-- LAYERED DAG FLOW VISUALIZATION -->
           <div id="dag-visualization-container" class="dag-container">
             <div class="dag-header">
@@ -179,29 +202,6 @@
             </div>
           </div>
 
-          <!-- PARTICIPANT TABLE -->
-          <div class="table-card">
-            <div class="table-header-group">
-              <h4>👥 Bảng Chi Tiết Từng Thành Viên (Xếp hạng theo chi phí tăng dần c<sub>(1)</sub> &le; c<sub>(n)</sub>)</h4>
-              <p class="table-subtitle">Khoảng cách thật d<sub>i</sub> = Đi riêng (Nhà ➔ D1) + ⚡ Đi chung (D1 ➔ Dk do DP tối ưu) + Về riêng (Dk ➔ Nhà)</p>
-            </div>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Thứ hạng</th>
-                    <th>Thành viên</th>
-                    <th>Chi tiết 3 chặng quãng đường (d<sub>i</sub>)</th>
-                    <th>Chi phí cá nhân c<sub>i</sub> = (d<sub>i</sub>)<sup>k</sup></th>
-                    <th>Trọng số OMP (w<sub>i</sub>)</th>
-                    <th>Điểm đóng góp (w<sub>i</sub> &times; c<sub>i</sub>)</th>
-                  </tr>
-                </thead>
-                <tbody id="participant-table-body"></tbody>
-              </table>
-            </div>
-          </div>
-
           <!-- COMBINATION COMPARISONS TABLE -->
           <div class="table-card">
             <h4>Bảng So Sánh Các Tổ Hợp Ứng Viên (Thứ tự điểm phạt &Psi; từ thấp đến cao)</h4>
@@ -214,7 +214,6 @@
                     <th>Tổng điểm mục tiêu (&Psi;)</th>
                     <th>Km trung bình</th>
                     <th>Người xa nhất đi</th>
-                    <th>Kết luận</th>
                   </tr>
                 </thead>
                 <tbody id="combinations-table-body"></tbody>
@@ -227,6 +226,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="/static/app.js?v=3.3"></script>
+  <script src="/static/app.js?v=3.5"></script>
 </body>
 </html>

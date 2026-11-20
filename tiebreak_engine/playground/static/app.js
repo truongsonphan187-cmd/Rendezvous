@@ -687,9 +687,7 @@ function displayResults(data) {
         const inKm = (p.inbound_distance_km !== undefined ? p.inbound_distance_km : (p.total_distance_km / 2)).toFixed(2);
         const totalKm = p.total_distance_km.toFixed(2);
 
-        const costDisplay = currentK > 1.0
-          ? `<code>${p.penalized_cost.toFixed(2)}</code> <span class="formula-sub">(${totalKm}<sup>${currentK.toFixed(1)}</sup>)</span>`
-          : `<code>${p.penalized_cost.toFixed(2)}</code>`;
+        const costDisplay = `<code>${p.penalized_cost.toFixed(2)}</code>`;
 
         return `
           <tr>
@@ -715,7 +713,7 @@ function displayResults(data) {
       .join("");
   }
 
-  // Render Table 2: Combinations Comparison
+  // Render Table 2: Combinations Comparison (Đã xóa cột Kết luận theo yêu cầu)
   const cTable = $("combinations-table-body");
   if (cTable) {
     cTable.innerHTML = data.evaluated_combinations
@@ -729,7 +727,6 @@ function displayResults(data) {
             <td><strong>${combo.total_penalty_score.toFixed(2)}</strong></td>
             <td>${combo.average_distance_km.toFixed(2)} km</td>
             <td>${combo.max_distance_km.toFixed(2)} km</td>
-            <td>${isWinner ? '<span class="winner-tag">CHIẾN THẮNG 🏆</span>' : '<span style="color:#94a3b8">Hạng dưới</span>'}</td>
           </tr>
         `;
       })
@@ -770,17 +767,11 @@ function renderDAGVisualization(dagData, selectedCombo) {
     return;
   }
 
-  // Case 2: Multi-Stage DAG (K >= 2)
+  // Case 2: Multi-Stage DAG (K >= 2) - Tối ưu chỉ giữ ô Đã loại trừ ở góc trên bên phải
   if (summaryPill) {
     summaryPill.innerHTML = `
-      <span class="dag-summary-badge badge-opt" title="Tổng quãng đường các chặng giữa do thuật toán DP lựa chọn">
-        🏆 Chặng giữa DP chọn: <strong>${dagData.optimal_middle_distance_km.toFixed(2)} km</strong>
-      </span>
-      <span class="dag-summary-badge badge-saved" title="Số km tiết kiệm được so với phương án chặng giữa xấu nhất">
-        ✨ Tiết kiệm: <strong>${dagData.saved_distance_km.toFixed(2)} km</strong>
-      </span>
-      <span class="dag-summary-badge badge-pruned" title="Số lượng nhánh tổ hợp con lãng phí bị cắt tỉa sớm">
-        ✂️ Cắt tỉa: <strong>${dagData.combinations_pruned_count} nhánh lãng phí</strong>
+      <span class="dag-summary-badge badge-pruned" title="Số lượng phương án chặng giữa khác bị loại bỏ nhờ nguyên lý tối ưu Bellman">
+        ✂️ Đã loại trừ: <strong>${dagData.combinations_pruned_count} phương án kém hơn</strong>
       </span>
     `;
   }
@@ -812,9 +803,6 @@ function renderDAGVisualization(dagData, selectedCombo) {
               </span>
               <span class="dag-node-name" title="${cand.name}">${cand.name}</span>
             </div>
-            <span class="dag-node-badge ${isWinner ? "badge-winner" : "badge-alt"}">
-              ${isWinner ? "🏆 ĐÃ CHỌN" : "⚪ Nhánh phụ"}
-            </span>
           </div>
         </div>
       `;
@@ -847,9 +835,6 @@ function renderDAGVisualization(dagData, selectedCombo) {
             </div>
             <div class="edge-pill-dist">
               <span>${edge.distance_km.toFixed(2)} km</span>
-              <span class="edge-status-tag ${edgeOptimal ? "opt" : "pruned"}">
-                ${edgeOptimal ? "DP CHỌN 🏆" : "CẮT TỈA ✂️"}
-              </span>
             </div>
           </div>
         `;
@@ -862,10 +847,11 @@ function renderDAGVisualization(dagData, selectedCombo) {
   flowHtml += '</div>'; // End dag-stages-flow
 
   // Decision Stepper
+  const is2Slots = currentData.slots.length === 2;
   let stepsHtml = `
     <div class="dag-decision-stepper">
       <div class="dag-stepper-title">
-        <span>📌</span> Tiến trình Ra Quyết Định theo Nguyên Lý Tối Ưu Bellman:
+        <span>📌</span> ${is2Slots ? "Phân Tích Quyết Định Lựa Chọn Chặng Giữa (K = 2 Chặng):" : "Tiến Trình Quy Hoạch Động (Layered DP) & Nguyên Lý Tối Ưu Bellman:"}
       </div>
   `;
 
@@ -882,7 +868,7 @@ function renderDAGVisualization(dagData, selectedCombo) {
         <p class="dag-step-desc">${step.decision_explanation}</p>
         <div>
           <span class="bellman-formula-tag">
-            Nguyên lý Bellman: C*(s) = min { C*(p) + cost(p, s) }
+            ${is2Slots ? "Cân bằng OMP: min { Đi riêng (Nhà ➔ D1) + Đi chung (D1 ➔ D2) + Về riêng (D2 ➔ Nhà) }" : "Nguyên lý Bellman: C*(s) = min { C*(p) + cost(p, s) } (Cắt tỉa các nhánh dài hơn)"}
           </span>
         </div>
       </div>

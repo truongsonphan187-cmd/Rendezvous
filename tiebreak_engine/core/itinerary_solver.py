@@ -422,9 +422,20 @@ class ItinerarySolver:
                 for cand in curr_slot.candidates:
                     alt_seg = await self.router.get_route(prev_chosen.coord, cand.coord)
                     is_c = (cand.id == curr_chosen.id)
-                    alt_comparisons.append(f"{cand.name}: {round(alt_seg.distance_km, 2)}km{' (DP chọn)' if is_c else ''}")
+                    alt_comparisons.append(f"{cand.name}: {round(alt_seg.distance_km, 2)}km{' (Được chọn)' if is_c else ''}")
 
-                explanation = f"Từ {prev_chosen.name} sang {curr_slot.name}, DP so sánh: {'; '.join(alt_comparisons)}. Nhánh {curr_chosen.name} đạt quãng đường tối ưu."
+                if len(slots) == 2:
+                    explanation = (
+                        f"Từ {prev_chosen.name} sang {curr_slot.name}: Nhánh {curr_chosen.name} ({round(step_seg.distance_km, 2)} km) "
+                        f"được chọn trong nghiệm tổng thể OMP vì tối ưu cự ly từ nhà các thành viên (tính cả đường về nhà), "
+                        f"so với các lựa chọn khác: {'; '.join([c for c in alt_comparisons if 'Được chọn' not in c])}."
+                    )
+                else:
+                    explanation = (
+                        f"Từ {prev_chosen.name} sang {curr_slot.name}: Nhánh {curr_chosen.name} ({round(step_seg.distance_km, 2)} km, lũy kế {round(cum_km, 2)} km). "
+                        f"Theo Nguyên lý Bellman, DP lưu trạng thái tối ưu này và cắt tỉa các nhánh dài hơn: {'; '.join([c for c in alt_comparisons if 'Được chọn' not in c])}."
+                    )
+
                 steps.append(
                     DAGStepDecisionData(
                         slot_id=curr_slot.id,
@@ -436,7 +447,7 @@ class ItinerarySolver:
                     )
                 )
 
-            # Tính khoảng cách tốt nhất vs xấu nhất để chứng minh hiệu quả tiết kiệm
+            # Tính khoảng cách chặng giữa của phương án thắng cuộc vs phương án xấu nhất
             all_middle_dists = []
             slot_cand_lists = [s.candidates for s in slots]
             for combo in itertools.product(*slot_cand_lists):
@@ -446,7 +457,12 @@ class ItinerarySolver:
                     m_dist += seg_ab.distance_km
                 all_middle_dists.append(m_dist)
 
-            opt_middle_km = round(min(all_middle_dists), 2)
+            best_combo_middle_dist = 0.0
+            for c_i in range(len(best_combo.candidates) - 1):
+                seg_ab = await self.router.get_route(best_combo.candidates[c_i].coord, best_combo.candidates[c_i + 1].coord)
+                best_combo_middle_dist += seg_ab.distance_km
+
+            opt_middle_km = round(best_combo_middle_dist, 2)
             worst_middle_km = round(max(all_middle_dists), 2)
             saved_km = round(max(0.0, worst_middle_km - opt_middle_km), 2)
             total_possible_combos = len(all_middle_dists)
