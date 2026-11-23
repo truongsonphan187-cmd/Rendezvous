@@ -190,12 +190,13 @@ async def serve_index():
 
 def main():
     port = int(os.environ.get("PORT", 8080))
+    is_prod = os.environ.get("ENV") == "production"
     print("\n" + "=" * 65)
     print(f"🚀 MÔI TRƯỜNG PLAYGROUND TIEBREAK ENGINE ĐANG CHẠY")
     print(f"👉 Đường dẫn cục bộ: http://localhost:{port}")
     print(f"👉 Kiểm tra sức khỏe API: http://localhost:{port}/api/health")
     print("=" * 65 + "\n")
-    uvicorn.run("tiebreak_engine.playground.run_playground:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("tiebreak_engine.playground.run_playground:app", host="0.0.0.0", port=port, reload=not is_prod)
 
 
 if __name__ == "__main__":

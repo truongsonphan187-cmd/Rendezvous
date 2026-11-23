@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+*$py.class
+cloudflared.exe
+.pytest_cache/
+*.log
+.vscode/
