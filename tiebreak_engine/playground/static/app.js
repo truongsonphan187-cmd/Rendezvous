@@ -1,5 +1,5 @@
 // =============================================================================
-// APP.JS - Dynamic Real-Time Ordered Median Sandbox (Default 1-Slot, Custom up to 5)
+// APP.JS - Dynamic Real-Time Ordered Median Sandbox (Unslop Edition)
 // =============================================================================
 
 let map = null;
@@ -12,7 +12,7 @@ let optDebounceTimer = null;
 let lastSelectedCandidateIds = [];
 let activeSlotIdx = 0; // Active slot index for sidebar editing
 
-// Palette of 15 vibrant colors for participants
+// Palette of 15 calibrated colors for participants (Cartographic tones)
 const PARTICIPANT_COLORS = [
   "#38bdf8", // Sky Blue
   "#34d399", // Emerald Green
@@ -34,8 +34,11 @@ const PARTICIPANT_COLORS = [
 // Helper for safe DOM queries
 const $ = (id) => document.getElementById(id);
 
+// SVG Plus Icon Helper
+const ICON_PLUS = `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>`;
+
 // =============================================================================
-// 1. DEFAULT DATASET (Mặc định: 4 Người & 1 Chặng với 2 Ứng viên tránh cháy API)
+// 1. DEFAULT DATASET (4 Người & 1 Chặng với 2 Ứng viên)
 // =============================================================================
 const DEFAULT_PARTICIPANTS = [
   { id: "u1", name: "Người 1", lat: 10.8120, lng: 106.6980 },
@@ -87,16 +90,18 @@ function highlightEdgeOnMap(geometry) {
   if (!highlightGroup || !geometry || geometry.length === 0) return;
   highlightGroup.clearLayers();
   const leafletCoords = geometry.map((pt) => [pt[1], pt[0]]);
-  // Outer bright border
+  
+  // Clean white backing
   L.polyline(leafletCoords, {
     color: "#ffffff",
-    weight: 9,
-    opacity: 0.95,
+    weight: 6,
+    opacity: 0.85,
   }).addTo(highlightGroup);
-  // Inner amber neon core
+  
+  // Clean amber core line (no neon glow)
   L.polyline(leafletCoords, {
-    color: "#fbbf24",
-    weight: 5,
+    color: "#f59e0b",
+    weight: 3.5,
     opacity: 1.0,
   }).addTo(highlightGroup);
 }
@@ -108,11 +113,11 @@ function clearHighlightOnMap() {
 }
 
 function createCustomIcon(color, label, isWinner = false) {
-  const size = isWinner ? 36 : 28;
-  const border = isWinner ? "2.5px solid #fbbf24" : "2px solid rgba(255, 255, 255, 0.9)";
+  const size = isWinner ? 32 : 26;
+  const border = isWinner ? "2px solid #ffffff" : "1.5px solid rgba(255, 255, 255, 0.85)";
   const shadow = isWinner
-    ? "0 0 20px rgba(251, 191, 36, 0.9), 0 2px 10px rgba(0, 0, 0, 0.8)"
-    : "0 2px 8px rgba(0, 0, 0, 0.6)";
+    ? "0 2px 8px rgba(0, 0, 0, 0.55)"
+    : "0 1px 4px rgba(0, 0, 0, 0.4)";
 
   return L.divIcon({
     className: "custom-leaflet-pin",
@@ -127,12 +132,11 @@ function createCustomIcon(color, label, isWinner = false) {
         display: flex;
         align-items: center;
         justify-content: center;
-        color: ${isWinner ? "#050505" : "#ffffff"};
-        font-family: 'DM Sans', sans-serif;
-        font-weight: 800;
-        font-size: ${isWinner ? "13px" : "11px"};
+        color: ${isWinner ? "#09090b" : "#ffffff"};
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 600;
+        font-size: ${isWinner ? "12px" : "10px"};
         cursor: grab;
-        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       ">${label}</div>
     `,
     iconSize: [size, size],
@@ -141,7 +145,7 @@ function createCustomIcon(color, label, isWinner = false) {
 }
 
 // =============================================================================
-// 3. RENDER MAP MARKERS (Dx NOTATION FOR SLOTS, NO STARS)
+// 3. RENDER MAP MARKERS
 // =============================================================================
 function renderMapMarkers() {
   if (!map || !markersGroup) return {};
@@ -157,7 +161,7 @@ function renderMapMarkers() {
     const marker = L.marker(latLng, {
       icon: createCustomIcon(color, `P${idx + 1}`),
       draggable: true,
-    }).bindPopup(`<b>👤 ${p.name}</b><br>Kéo thả icon để thay đổi vị trí nhà!`);
+    }).bindPopup(`<b>${p.name}</b><br><span style="color:#71717a;font-size:12px;">Kéo thả điểm để đổi vị trí</span>`);
 
     marker.on("dragend", (e) => {
       const newPos = e.target.getLatLng();
@@ -173,19 +177,19 @@ function renderMapMarkers() {
 
   // 2. Candidate Venues for all slots (D1..D5)
   currentData.slots.forEach((slot, sIdx) => {
-    const slotLabel = `D${sIdx + 1}`; // All candidates of slot sIdx have label Dx
+    const slotLabel = `D${sIdx + 1}`;
 
     slot.candidates.forEach((c) => {
       const latLng = [c.lat, c.lng];
       const isWinner = lastSelectedCandidateIds.includes(c.id);
-      // Winner is GOLD (#fbbf24) with label Dx, losing is ORANGE (#ea580c) with label Dx
-      const color = isWinner ? "#fbbf24" : "#ea580c";
+      // Winner is Amber (#f59e0b) with dark text, other is Burnt Orange (#ea580c)
+      const color = isWinner ? "#f59e0b" : "#ea580c";
 
       const marker = L.marker(latLng, {
         icon: createCustomIcon(color, slotLabel, isWinner),
         draggable: true,
       }).bindPopup(
-        `<b>📍 ${c.name} (${slotLabel})</b>${isWinner ? "<br><b style='color:#fbbf24'>🏆 ĐỊA ĐIỂM ĐƯỢC CHỌN</b>" : ""}<br>Kéo thả icon để thay đổi vị trí quán!`
+        `<b>${c.name} (${slotLabel})</b>${isWinner ? "<br><span style='color:#f59e0b;font-weight:600;'>Phương án được chọn</span>" : ""}<br><span style='color:#71717a;font-size:12px;'>Kéo thả điểm để đổi vị trí</span>`
       );
 
       marker.on("dragend", (e) => {
@@ -234,13 +238,13 @@ function drawRealRoadRoutes(data) {
   if (data.shared_itinerary_geometry && data.shared_itinerary_geometry.length > 0) {
     const leafletCoords = data.shared_itinerary_geometry.map((pt) => [pt[1], pt[0]]);
     L.polyline(leafletCoords, {
-      color: "#fbbf24",
-      weight: 6,
-      opacity: 0.9,
+      color: "#f59e0b",
+      weight: 4.5,
+      opacity: 0.95,
     }).addTo(routesGroup);
   }
 
-  // Individual Commute Paths (Nhà -> Chặng đầu và Chặng cuối -> Nhà)
+  // Individual Commute Paths
   data.participant_breakdowns.forEach((p, idx) => {
     const color = PARTICIPANT_COLORS[idx % PARTICIPANT_COLORS.length];
 
@@ -248,9 +252,9 @@ function drawRealRoadRoutes(data) {
       const outboundCoords = p.outbound_geometry.map((pt) => [pt[1], pt[0]]);
       L.polyline(outboundCoords, {
         color: color,
-        weight: 3.5,
-        opacity: 0.8,
-        dashArray: isOsrmActive ? null : "6, 6",
+        weight: 3,
+        opacity: 0.75,
+        dashArray: isOsrmActive ? null : "4, 6",
       }).addTo(routesGroup);
     }
 
@@ -258,16 +262,16 @@ function drawRealRoadRoutes(data) {
       const inboundCoords = p.inbound_geometry.map((pt) => [pt[1], pt[0]]);
       L.polyline(inboundCoords, {
         color: color,
-        weight: 3.5,
-        opacity: 0.8,
-        dashArray: isOsrmActive ? null : "6, 6",
+        weight: 3,
+        opacity: 0.75,
+        dashArray: isOsrmActive ? null : "4, 6",
       }).addTo(routesGroup);
     }
   });
 }
 
 // =============================================================================
-// 5. SIDEBAR MANAGEMENT: PARTICIPANTS & CUSTOM SLOTS (UP TO 5)
+// 5. SIDEBAR MANAGEMENT: PARTICIPANTS & CUSTOM SLOTS
 // =============================================================================
 function renderSidebarLists() {
   // 1. Participant List
@@ -330,8 +334,8 @@ function renderActiveSlotCandidates() {
   if (slotTitle) {
     const canDeleteSlot = currentData.slots.length > 1;
     slotTitle.innerHTML = `
-      📍 Ứng viên Chặng ${activeSlotIdx + 1} (${slotDx})
-      ${canDeleteSlot ? `<button id="del-slot-btn" class="btn-del-sm" type="button" title="Xóa chặng này">🗑️ Xóa chặng</button>` : ""}
+      Ứng viên Chặng ${activeSlotIdx + 1} (${slotDx})
+      ${canDeleteSlot ? `<button id="del-slot-btn" class="btn-del-sm" type="button" title="Xóa chặng này">Xóa chặng</button>` : ""}
     `;
     const delSlotBtn = $("del-slot-btn");
     if (delSlotBtn) {
@@ -339,7 +343,9 @@ function renderActiveSlotCandidates() {
     }
   }
 
-  if (addCBtn) addCBtn.innerHTML = `<span>➕</span> Thêm địa điểm ${slotDx}`;
+  if (addCBtn) {
+    addCBtn.innerHTML = `${ICON_PLUS} Thêm địa điểm ${slotDx}`;
+  }
 
   // Render Slots Tabs (D1, D2, D3...)
   if (tabContainer) {
@@ -424,7 +430,6 @@ function addParticipant() {
   const newRow = $(`entity-p-${newP.id}`);
   if (newRow) {
     newRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    newRow.classList.add("highlight-flash");
   }
 
   scheduleOptimization(50);
@@ -433,7 +438,7 @@ function addParticipant() {
 // Delete Participant
 function deleteParticipant(idx) {
   if (currentData.participants.length <= 2) {
-    alert("Nhóm cần tối thiểu 2 thành viên để tính toán công bằng!");
+    alert("Nhóm cần tối thiểu 2 thành viên để tính toán công bằng.");
     return;
   }
   currentData.participants.splice(idx, 1);
@@ -472,7 +477,6 @@ function addCandidate() {
   const newRow = $(`entity-c-${newC.id}`);
   if (newRow) {
     newRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    newRow.classList.add("highlight-flash");
   }
 
   scheduleOptimization(50);
@@ -484,7 +488,7 @@ function deleteCandidate(idx) {
   if (!slot) return;
 
   if (slot.candidates.length <= 1) {
-    alert("Mỗi chặng cần tối thiểu 1 địa điểm dừng chân!");
+    alert("Mỗi chặng cần tối thiểu 1 địa điểm dừng chân.");
     return;
   }
   slot.candidates.splice(idx, 1);
@@ -496,7 +500,7 @@ function deleteCandidate(idx) {
 // Add New Slot (Custom up to 5 slots)
 function addSlot() {
   if (currentData.slots.length >= 5) {
-    alert("Hệ thống hỗ trợ tối đa 5 chặng!");
+    alert("Hệ thống hỗ trợ tối đa 5 chặng.");
     return;
   }
   const newSlotIdx = currentData.slots.length;
@@ -536,11 +540,10 @@ function addSlot() {
 // Delete Current Slot
 function deleteCurrentSlot() {
   if (currentData.slots.length <= 1) {
-    alert("Cần tối thiểu 1 chặng để giải quyết hòa vote!");
+    alert("Cần tối thiểu 1 chặng để giải quyết hòa vote.");
     return;
   }
   currentData.slots.splice(activeSlotIdx, 1);
-  // Re-number remaining slots
   currentData.slots.forEach((s, i) => {
     s.slot_id = `slot_${i + 1}`;
     s.slot_name = `Chặng ${i + 1}`;
@@ -553,7 +556,7 @@ function deleteCurrentSlot() {
   scheduleOptimization(50);
 }
 
-// Reset to Default Setup (4 people, 1 slot with 2 options)
+// Reset to Default Setup
 function resetToDefault() {
   currentData = {
     participants: JSON.parse(JSON.stringify(DEFAULT_PARTICIPANTS)),
@@ -570,7 +573,7 @@ function resetToDefault() {
 }
 
 // =============================================================================
-// 6. EXECUTE OPTIMIZATION (REAL-TIME ENGINE)
+// 6. EXECUTE OPTIMIZATION
 // =============================================================================
 function setSolverStatus(busy) {
   const pill = $("live-pill");
@@ -578,7 +581,7 @@ function setSolverStatus(busy) {
   if (!pill || !text) return;
   if (busy) {
     pill.classList.add("live-pill-busy");
-    text.textContent = "Đang tính lộ trình";
+    text.textContent = "Đang tính toán";
   } else {
     pill.classList.remove("live-pill-busy");
     text.textContent = "Lộ trình hoàn tất";
@@ -644,10 +647,10 @@ function displayResults(data) {
   if (tTime) tTime.textContent = `${data.execution_time_ms} ms`;
   if (tRoute) {
     if (data.fallback_used) {
-      tRoute.textContent = "Đường chim bay Haversine (1.35x)";
+      tRoute.textContent = "Haversine (1.35x)";
       tRoute.className = "tag tag-warning";
     } else {
-      tRoute.textContent = "Đường phố OSRM thực tế";
+      tRoute.textContent = "Đường bộ OSRM";
       tRoute.className = "tag tag-success";
     }
   }
@@ -664,17 +667,13 @@ function displayResults(data) {
     if (mMax) mMax.textContent = `${bestComboSummary.max_distance_km.toFixed(1)} km`;
   }
 
-  // Re-render markers with winner gold Dx & draw real street routes
+  // Re-render markers & road routes
   renderMapMarkers();
   drawRealRoadRoutes(data);
-  renderActiveSlotCandidates(); // update winner badges in active slot tab
+  renderActiveSlotCandidates();
 
   // Render Layered DP on DAG Flow Visualization
   renderDAGVisualization(data.dag_visualization, data.selected_combination);
-
-  // Active exponent k for mathematical formula notation
-  const expSlider = $("exponent-slider");
-  const currentK = expSlider ? parseFloat(expSlider.value) : 1.0;
 
   // Render Table 1: Participants sorted by Rank: c_(1) <= c_(2) <= ... <= c_(N)
   const sortedByRank = [...data.participant_breakdowns].sort((a, b) => a.rank - b.rank);
@@ -692,14 +691,14 @@ function displayResults(data) {
         return `
           <tr>
             <td><strong>#${p.rank}</strong></td>
-            <td><strong>${p.name}</strong></td>
+            <td>${p.name}</td>
             <td>
               <div class="dist-breakdown">
-                <span class="dist-pill dist-out" title="Đi riêng: Nhà ➔ Điểm hẹn đầu (${outKm} km)">🏠 Đi: ${outKm} km</span>
+                <span class="dist-pill dist-out" title="Đi riêng: Nhà ➔ Chặng đầu (${outKm} km)">Đi: ${outKm} km</span>
                 <span class="dist-operator">+</span>
-                <span class="dist-pill dist-mid" title="Đi chung: Cả nhóm cùng di chuyển qua các chặng do DP tối ưu (${midKm} km)">⚡ Chung: ${midKm} km</span>
+                <span class="dist-pill dist-mid" title="Đi chung: Di chuyển qua các chặng (${midKm} km)">Chung: ${midKm} km</span>
                 <span class="dist-operator">+</span>
-                <span class="dist-pill dist-in" title="Về riêng: Điểm hẹn cuối ➔ Nhà (${inKm} km)">🏠 Về: ${inKm} km</span>
+                <span class="dist-pill dist-in" title="Về riêng: Chặng cuối ➔ Nhà (${inKm} km)">Về: ${inKm} km</span>
                 <span class="dist-operator">=</span>
                 <span class="dist-sum">${totalKm} km</span>
               </div>
@@ -713,7 +712,7 @@ function displayResults(data) {
       .join("");
   }
 
-  // Render Table 2: Combinations Comparison (Đã xóa cột Kết luận theo yêu cầu)
+  // Render Table 2: Combinations Comparison
   const cTable = $("combinations-table-body");
   if (cTable) {
     cTable.innerHTML = data.evaluated_combinations
@@ -742,36 +741,40 @@ function renderDAGVisualization(dagData, selectedCombo) {
   const summaryPill = $("dag-summary-pill");
   if (!container) return;
 
-  // Case 1: Single Slot (K = 1) -> No middle legs exist yet
+  // Case 1: Single Slot (K = 1) -> Direct travel
   if (!dagData || !dagData.enabled || dagData.layers_count < 2) {
     if (summaryPill) {
       summaryPill.innerHTML = `
-        <span class="dag-summary-badge" style="background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.1);">
-          📍 Lịch trình 1 điểm hẹn (K = 1)
+        <span class="dag-summary-badge" style="background: var(--bg-raised); color: var(--text-muted); border: 1px solid var(--border-hairline);">
+          Lộ trình 1 điểm hẹn (K = 1)
         </span>
       `;
     }
     container.innerHTML = `
       <div class="dag-single-slot-notice">
-        <div class="dag-single-slot-icon">ℹ️</div>
-        <div class="dag-single-slot-title">Chuyến đi 1 chặng: Di chuyển trực tiếp không qua chặng giữa</div>
+        <div class="dag-single-slot-icon">
+          <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+        </div>
+        <div class="dag-single-slot-title">Lộ trình 1 chặng: Di chuyển trực tiếp không qua chặng giữa</div>
         <p class="dag-single-slot-desc">
           Các thành viên chỉ gặp nhau tại một điểm hẹn duy nhất (<strong>D1</strong>). Toàn bộ lộ trình gồm 2 chặng cá nhân: 
-          <code>Nhà ➔ D1</code> và <code>D1 ➔ Nhà</code>. Chưa phát sinh chặng di chuyển trung gian giữa các quán, do đó đồ thị đa tầng (Layered DP) chưa kích hoạt.
+          <code>Nhà ➔ D1</code> và <code>D1 ➔ Nhà</code>. Khi chưa phát sinh chặng di chuyển trung gian, đồ thị đa tầng (Layered DP) chưa kích hoạt.
         </p>
         <div class="dag-single-slot-hint">
-          💡 <strong>Trải nghiệm thuật toán:</strong> Bấm <strong>"➕ Thêm chặng"</strong> ở thanh bên trái (tạo lịch trình 2–5 chặng như Ăn trưa ➔ Cafe ➔ Bida) để kích hoạt đồ thị Quy hoạch động trực quan!
+          Thêm chặng ở thanh điều khiển bên trái để kích hoạt đồ thị quy hoạch động trực quan.
         </div>
       </div>
     `;
     return;
   }
 
-  // Case 2: Multi-Stage DAG (K >= 2) - Tối ưu chỉ giữ ô Đã loại trừ ở góc trên bên phải
+  // Case 2: Multi-Stage DAG (K >= 2)
   if (summaryPill) {
     summaryPill.innerHTML = `
-      <span class="dag-summary-badge badge-pruned" title="Số lượng phương án chặng giữa khác bị loại bỏ nhờ nguyên lý tối ưu Bellman">
-        ✂️ Đã loại trừ: <strong>${dagData.combinations_pruned_count} phương án kém hơn</strong>
+      <span class="dag-summary-badge badge-pruned" title="Số lượng phương án chặng giữa khác bị loại bỏ nhờ nguyên lý Bellman">
+        Đã loại trừ: <strong>${dagData.combinations_pruned_count} phương án kém hơn</strong>
       </span>
     `;
   }
@@ -798,7 +801,7 @@ function renderDAGVisualization(dagData, selectedCombo) {
         <div class="dag-node-card ${isWinner ? "is-winner" : ""}" data-cand-id="${cand.id}">
           <div class="dag-node-top">
             <div class="dag-node-left">
-              <span class="dag-node-pin" style="background-color: ${isWinner ? "#fbbf24" : "rgba(255, 255, 255, 0.15)"}; color: ${isWinner ? "#050505" : "#ffffff"};">
+              <span class="dag-node-pin" style="background-color: ${isWinner ? "var(--accent)" : "var(--bg-raised)"}; color: ${isWinner ? "var(--accent-text)" : "var(--text-secondary)"};">
                 ${slotTag}
               </span>
               <span class="dag-node-name" title="${cand.name}">${cand.name}</span>
@@ -851,7 +854,10 @@ function renderDAGVisualization(dagData, selectedCombo) {
   let stepsHtml = `
     <div class="dag-decision-stepper">
       <div class="dag-stepper-title">
-        <span>📌</span> ${is2Slots ? "Phân Tích Quyết Định Lựa Chọn Chặng Giữa (K = 2 Chặng):" : "Tiến Trình Quy Hoạch Động (Layered DP) & Nguyên Lý Tối Ưu Bellman:"}
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        ${is2Slots ? "Phân tích quyết định lựa chọn chặng giữa (K = 2 chặng):" : "Tiến trình quy hoạch động (Layered DP) & nguyên lý tối ưu Bellman:"}
       </div>
   `;
 
@@ -927,9 +933,9 @@ function updateSliderLabels() {
 
   if (expVal) expVal.textContent = k.toFixed(1);
   if (expDesc) {
-    if (k === 1.0) expDesc.textContent = "Bậc 1 (OMP Tuyến tính)";
+    if (k === 1.0) expDesc.textContent = "Bậc 1 (Tuyến tính)";
     else if (k < 1.6) expDesc.textContent = "Phạt lũy thừa vừa phải";
-    else expDesc.textContent = "Phạt cấp số nhân cực mạnh";
+    else expDesc.textContent = "Phạt cấp số nhân mạnh";
   }
 
   if (fairVal) fairVal.textContent = lambda.toFixed(1);
@@ -966,7 +972,7 @@ function setupEventListeners() {
         expSlider.disabled = true;
       }
       if (expHint) {
-        expHint.innerHTML = "Ở chế độ OMP Thuần túy: <b>k khóa cố định ở 1.0</b> (chi phí cá nhân c<sub>i</sub> chính là quãng đường km thực tế theo sách giáo khoa).";
+        expHint.innerHTML = "Chế độ OMP tiêu chuẩn: k cố định ở 1.0 (chi phí cá nhân c<sub>i</sub> chính là quãng đường thực tế).";
       }
       updateSliderLabels();
       scheduleOptimization(50);
@@ -978,11 +984,11 @@ function setupEventListeners() {
       isPureOmpMode = false;
       tabCustom.classList.add("active");
       if (tabPure) tabPure.classList.remove("active");
-      if (modeBadge) modeBadge.textContent = "OMP + Phạt Cấp Số Nhân";
+      if (modeBadge) modeBadge.textContent = "OMP mở rộng";
 
       if (expSlider) expSlider.disabled = false;
       if (expHint) {
-        expHint.innerHTML = "Mở khóa hệ số lũy thừa k: c<sub>i</sub> = d<sub>i</sub><sup>k</sup>. Khi k > 1.0, người đi xa bị phạt cấp số nhân trước khi tổng hợp OMP.";
+        expHint.innerHTML = "Mở khóa hệ số lũy thừa k: c<sub>i</sub> = d<sub>i</sub><sup>k</sup>. Khi k > 1.0, người đi xa bị phạt lũy thừa trước khi tổng hợp OMP.";
       }
       updateSliderLabels();
       scheduleOptimization(50);

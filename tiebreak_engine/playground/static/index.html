@@ -6,27 +6,37 @@
   <title>Ordered Median Tie-Break Engine | Interactive Sandbox</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  <link rel="stylesheet" href="/static/style.css?v=3.8">
+  <link rel="stylesheet" href="/static/style.css?v=4.0">
 </head>
 <body>
   <div class="app-container">
     <!-- HEADER -->
     <header class="navbar">
       <div class="brand">
-        <span class="logo-icon">📍</span>
-        <div>
+        <div class="brand-mark">
+          <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+        <div class="brand-text">
           <h1>Ordered Median Tie-Break Engine</h1>
           <p class="subtitle">Multi-Criteria Optimization Sandbox for Group Hangouts</p>
         </div>
       </div>
       <div class="header-actions">
         <div id="live-pill" class="live-pill">
-          <span id="live-dot" class="live-dot"></span> <span id="live-text">Lộ trình hoàn tất</span>
+          <span id="live-dot" class="live-dot"></span>
+          <span id="live-text">Lộ trình hoàn tất</span>
         </div>
         <button id="reset-default-btn" class="btn-reset" title="Khôi phục 4 người và 2 quán mặc định tại TP.HCM">
-          <span>🔄</span> Đặt lại mặc định
+          <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+          Đặt lại mặc định
         </button>
       </div>
     </header>
@@ -38,17 +48,30 @@
         <!-- PARAMETER TUNING -->
         <section class="card parameter-tuning">
           <div class="card-header">
-            <h3>⚙️ Tinh chỉnh Thuật toán</h3>
-            <span class="badge" id="mode-badge">Ordered Median</span>
+            <div class="card-title-group">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" x2="4" y1="21" y2="14"/>
+                <line x1="4" x2="4" y1="10" y2="3"/>
+                <line x1="12" x2="12" y1="21" y2="12"/>
+                <line x1="12" x2="12" y1="8" y2="3"/>
+                <line x1="20" x2="20" y1="21" y2="16"/>
+                <line x1="20" x2="20" y1="12" y2="3"/>
+                <line x1="1" x2="7" y1="14" y2="14"/>
+                <line x1="9" x2="15" y1="8" y2="8"/>
+                <line x1="17" x2="23" y1="16" y2="16"/>
+              </svg>
+              <h3>Tinh chỉnh thông số</h3>
+            </div>
+            <span class="badge" id="mode-badge">Standard OMP</span>
           </div>
 
           <!-- MODE TABS (CHỌN CHẾ ĐỘ THUẦN TÚY VS MỞ RỘNG) -->
           <div class="mode-tabs">
             <button id="tab-pure-omp" class="tab-btn active" type="button">
-              📘 OMP Thuần Túy (Chuẩn Sách Toán)
+              OMP tiêu chuẩn (k = 1.0)
             </button>
             <button id="tab-custom-penalty" class="tab-btn" type="button">
-              🚀 OMP + Phạt Cấp Số Nhân
+              OMP mở rộng (k > 1.0)
             </button>
           </div>
 
@@ -56,13 +79,13 @@
           <div class="control-group" id="group-exponent">
             <div class="slider-header">
               <label for="exponent-slider">
-                <strong>Hệ số lũy thừa phạt xa (k)</strong>: <span id="exponent-val" class="highlight-val">1.0</span>
+                Hệ số lũy thừa phạt xa (k): <span id="exponent-val" class="highlight-val">1.0</span>
               </label>
               <span id="exponent-desc" class="mini-tag">Bậc 1 (Tuyến tính)</span>
             </div>
             <input type="range" id="exponent-slider" min="1.0" max="3.0" step="0.1" value="1.0" class="slider" disabled>
             <p class="control-hint" id="exponent-hint">
-              Ở chế độ OMP Thuần túy: k khóa cố định ở 1.0 (chi phí cá nhân c<sub>i</sub> chính là quãng đường km thực tế).
+              Chế độ OMP tiêu chuẩn: k cố định ở 1.0 (chi phí cá nhân c<sub>i</sub> chính là quãng đường thực tế).
             </p>
           </div>
 
@@ -70,13 +93,13 @@
           <div class="control-group">
             <div class="slider-header">
               <label for="fairness-slider">
-                <strong>Trọng số công bằng OMP (λ)</strong>: <span id="fairness-val" class="highlight-val">0.0</span>
+                Trọng số công bằng (λ): <span id="fairness-val" class="highlight-val">0.0</span>
               </label>
-              <span id="fairness-desc" class="mini-tag">MinSum (Tập thể)</span>
+              <span id="fairness-desc" class="mini-tag">MinSum</span>
             </div>
             <input type="range" id="fairness-slider" min="0.0" max="2.0" step="0.1" value="0.0" class="slider">
             <p class="control-hint">
-              Trọng số thứ tự w<sub>i</sub>: λ = 0.0 là MinSum (tiết kiệm xăng cả nhóm); λ ≥ 1.0 là MinMax (ưu tiên người xa nhất).
+              Trọng số w<sub>i</sub>: λ = 0.0 là MinSum (tiết kiệm tổng quãng đường); λ ≥ 1.0 ưu tiên công bằng (giảm tải cho người xa nhất).
             </p>
           </div>
 
@@ -87,8 +110,8 @@
               <span class="toggle-slider"></span>
             </label>
             <div>
-              <span class="toggle-title">Đường phố thực tế (OSRM Road Network)</span>
-              <p class="control-hint">Bật: Vẽ đường uốn lượn thật qua ngã tư/cầu. Tắt: Haversine 1.35x.</p>
+              <span class="toggle-title">Mạng đường bộ thực tế (OSRM)</span>
+              <p class="control-hint">Bật: Tính theo mạng đường giao thông thực tế. Tắt: Haversine với hệ số 1.35x.</p>
             </div>
           </div>
         </section>
@@ -96,25 +119,48 @@
         <!-- PARTICIPANTS MANAGEMENT -->
         <section class="card">
           <div class="card-header">
-            <h3>👥 Thành viên</h3>
+            <div class="card-title-group">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              <h3>Thành viên</h3>
+            </div>
             <button id="add-participant-btn" class="btn-action-sm" type="button">
-              <span>➕</span> Thêm người
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"/><path d="M12 5v14"/>
+              </svg>
+              Thêm người
             </button>
           </div>
-          <p class="section-hint">Kéo thả icon 👤 trên bản đồ để đổi vị trí, hoặc sửa tên/xóa người:</p>
+          <p class="section-hint">Kéo thả điểm P trên bản đồ để đổi vị trí, hoặc chỉnh sửa thông tin:</p>
           <div id="participants-list" class="entities-list"></div>
         </section>
 
         <!-- CANDIDATES MANAGEMENT (MULTI-SLOTS) -->
         <section class="card">
           <div class="card-header">
-            <h3 id="slot-section-title">📍 Ứng viên Chặng 1 (D1)</h3>
-            <div style="display: flex; gap: 0.35rem;">
+            <div class="card-title-group" id="slot-section-title-wrap">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              <h3 id="slot-section-title">Ứng viên Chặng 1 (D1)</h3>
+            </div>
+            <div style="display: flex; gap: 6px;">
               <button id="add-candidate-btn" class="btn-action-sm" type="button" title="Thêm địa điểm cho chặng đang chọn">
-                <span>➕</span> Thêm địa điểm
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14"/><path d="M12 5v14"/>
+                </svg>
+                Thêm địa điểm
               </button>
               <button id="add-slot-btn" class="btn-action-sm" type="button" title="Thêm chặng mới (tối đa 5 chặng)">
-                <span>➕</span> Thêm chặng
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14"/><path d="M12 5v14"/>
+                </svg>
+                Thêm chặng
               </button>
             </div>
           </div>
@@ -122,7 +168,7 @@
           <!-- Dynamic Slots Tab Bar (D1 -> D5) -->
           <div class="slots-tab-bar" id="slots-tab-bar"></div>
 
-          <p class="section-hint">Kéo thả icon Dx trên bản đồ để đổi vị trí, hoặc thêm/bớt địa điểm:</p>
+          <p class="section-hint">Kéo thả điểm D trên bản đồ để đổi vị trí, hoặc thêm/bớt địa điểm:</p>
           <div id="candidates-list" class="entities-list"></div>
         </section>
       </aside>
@@ -138,27 +184,27 @@
         <section class="results-container">
           <div class="results-header">
             <div>
-              <h2>🏆 Kết Quả Phân Giải Hòa Vote (Tie-Break Engine)</h2>
-              <p class="sub-text">Giải quyết mâu thuẫn bằng Thuật toán Ordered Median Problem (OMP)</p>
+              <h2>Kết quả tối ưu hòa vote</h2>
+              <p class="sub-text">Giải quyết xung đột địa điểm bằng mô hình Ordered Median Problem</p>
             </div>
             <div class="telemetry-tags">
               <span id="telemetry-time" class="tag">0.0 ms</span>
-              <span id="telemetry-routing" class="tag tag-success">Đường phố OSRM thực tế</span>
+              <span id="telemetry-routing" class="tag tag-success">Đường bộ OSRM</span>
             </div>
           </div>
 
           <!-- METRIC CARDS -->
           <div class="metric-cards-grid">
             <div class="metric-card">
-              <span class="metric-label">Tổng Điểm Mục Tiêu (Ψ)</span>
+              <span class="metric-label">Tổng điểm mục tiêu (Ψ)</span>
               <div id="metric-psi" class="metric-value">--</div>
             </div>
             <div class="metric-card">
-              <span class="metric-label">Trung Bình km / Người</span>
+              <span class="metric-label">Quãng đường trung bình</span>
               <div id="metric-avg-dist" class="metric-value">--</div>
             </div>
             <div class="metric-card">
-              <span class="metric-label">Người Đi Xa Nhất (Outlier)</span>
+              <span class="metric-label">Người đi xa nhất</span>
               <div id="metric-max-dist" class="metric-value">--</div>
             </div>
           </div>
@@ -166,16 +212,16 @@
           <!-- PARTICIPANT TABLE -->
           <div class="table-card">
             <div class="table-header-group">
-              <h4>👥 Bảng Chi Tiết Từng Thành Viên (Xếp hạng theo chi phí tăng dần c<sub>(1)</sub> &le; c<sub>(n)</sub>)</h4>
-              <p class="table-subtitle">Khoảng cách thật d<sub>i</sub> = Đi riêng (Nhà ➔ D1) + ⚡ Đi chung (D1 ➔ Dk do DP tối ưu) + Về riêng (Dk ➔ Nhà)</p>
+              <h4>Chi tiết từng thành viên (sắp xếp c<sub>(1)</sub> &le; ... &le; c<sub>(n)</sub>)</h4>
+              <p class="table-subtitle">Khoảng cách d<sub>i</sub> = Đi riêng (Nhà ➔ D1) + Đi chung (D1 ➔ Dk) + Về riêng (Dk ➔ Nhà)</p>
             </div>
             <div class="table-responsive">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Thứ hạng</th>
+                    <th>Hạng</th>
                     <th>Thành viên</th>
-                    <th>Chi tiết 3 chặng quãng đường (d<sub>i</sub>)</th>
+                    <th>Phân rã quãng đường (d<sub>i</sub>)</th>
                     <th>Chi phí cá nhân (c<sub>i</sub>)</th>
                     <th>Trọng số OMP (w<sub>i</sub>)</th>
                     <th>Điểm đóng góp (w<sub>i</sub> &times; c<sub>i</sub>)</th>
@@ -190,8 +236,8 @@
           <div id="dag-visualization-container" class="dag-container">
             <div class="dag-header">
               <div class="dag-title-group">
-                <h4>⚡ Trực Quan Hóa Thuật Toán Quy Hoạch Động Đa Tầng (Layered DP on Multi-Stage DAG)</h4>
-                <p class="dag-subtitle">Cách thuật toán tìm lộ trình chặng giữa tối ưu &amp; cắt tỉa các nhánh lãng phí (Nguyên lý tối ưu Bellman)</p>
+                <h4>Quy hoạch động đa tầng trên đồ thị DAG (Layered DP)</h4>
+                <p class="dag-subtitle">Tối ưu lộ trình chặng giữa và cắt tỉa nhánh lãng phí theo nguyên lý Bellman</p>
               </div>
               <div id="dag-summary-pill" class="dag-summary-pill">
                 <!-- Dynamically populated -->
@@ -204,12 +250,15 @@
 
           <!-- COMBINATION COMPARISONS TABLE -->
           <div class="table-card">
-            <h4>Bảng So Sánh Các Tổ Hợp Ứng Viên (Thứ tự điểm phạt &Psi; từ thấp đến cao)</h4>
+            <div class="table-header-group">
+              <h4>So sánh các tổ hợp ứng viên (sắp xếp theo điểm phạt &Psi;)</h4>
+              <p class="table-subtitle">Phương án có điểm mục tiêu nhỏ nhất là phương án tối ưu thỏa mãn cả nhóm</p>
+            </div>
             <div class="table-responsive">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Thứ hạng</th>
+                    <th>Hạng</th>
                     <th>Tổ hợp ứng viên</th>
                     <th>Tổng điểm mục tiêu (&Psi;)</th>
                     <th>Km trung bình</th>
@@ -226,6 +275,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="/static/app.js?v=3.7"></script>
+  <script src="/static/app.js?v=4.0"></script>
 </body>
 </html>
