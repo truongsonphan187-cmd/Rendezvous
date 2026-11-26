@@ -4,7 +4,9 @@ __pycache__
 *.pyd
 .git
 .github
+.agents
 .vscode
+.venv
 cloudflared*
 .pytest_cache
 *.log

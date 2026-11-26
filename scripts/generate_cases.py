@@ -1,6 +1,7 @@
 import json
 import math
 import random
+from pathlib import Path
 from typing import Any
 
 # Tọa độ tương đối (km) của các cụm quận/khu vực thực tế tại TP.HCM
@@ -134,12 +135,17 @@ def generate_dataset(seed: int = 2026) -> list[dict[str, Any]]:
 
 
 def export_files(dataset: list[dict[str, Any]]) -> None:
+    out_dir = Path(__file__).resolve().parent / "data"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    json_path = out_dir / "hangout_20_cases.json"
+    txt_path = out_dir / "hangout_20_cases.txt"
+
     # Xuất JSON đầy đủ
-    with open("hangout_20_cases.json", "w", encoding="utf-8") as f_json:
+    with open(json_path, "w", encoding="utf-8") as f_json:
         json.dump(dataset, f_json, ensure_ascii=False, indent=2)
 
     # Xuất TXT ma trận kề thuần số cho C++/Python thuật toán
-    with open("hangout_20_cases.txt", "w", encoding="utf-8") as f_txt:
+    with open(txt_path, "w", encoding="utf-8") as f_txt:
         f_txt.write(f"{len(dataset)}\n")
         for case in dataset:
             f_txt.write(f"\n# CASE {case['case_id']} (V={case['total_vertices']})\n")
@@ -153,5 +159,5 @@ if __name__ == "__main__":
     data = generate_dataset(seed=2026)
     export_files(data)
     print(
-        f"Generated {len(data)} cases -> hangout_20_cases.json & hangout_20_cases.txt"
+        f"Generated {len(data)} cases -> scripts/data/hangout_20_cases.json & hangout_20_cases.txt"
     )

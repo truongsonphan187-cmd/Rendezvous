@@ -1,7 +1,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
-cloudflared.exe
+cloudflared*
+.agents/
 .pytest_cache/
 *.log
 .vscode/
+.venv/
